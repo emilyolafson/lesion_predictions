@@ -18,9 +18,7 @@ def prepare_data(X):
     zeros=X==0
     zeros=np.sum(zeros,0)
     zeros=zeros==X.shape[0]
-    X=X[:,~zeros]
-    print("Final size of X: " + str(X.shape))
-    
+    X=X[:,~zeros]    
     return X
 
 def access_elements(nums, list_index):
@@ -34,7 +32,6 @@ def find_missing_scans(ids, parc, chacovar):
     return missing_files
 
 def load_chaco_data(ids,chacovar):
-    print(len(ids))
     for i in range(0,len(ids)):
         
         with open(ids[i], 'r+b') as e:
@@ -129,13 +126,8 @@ def create_data_set(csv_path=CSV_PATH, atlas=None, covariates=None, verbose=Fals
     
     # load X data
     ids_fullpaths = LESIONMASK_PATH + ids + ['_ses-1_space-MNI152_desc-T1-lesion_mask_MNI_1mm_nemo_output_sdstream_{}_{}_mean.pkl'.format(chacovar,parc)]
-    print(len(ids_fullpaths))
-    missing = [x for x in ids_fullpaths if x in missing_scans]
-    print(missing)
     ids_fullpaths_nonemissing = [x for x in ids_fullpaths if x not in missing_scans]
-    print(len(ids_fullpaths_nonemissing))
     X = load_chaco_data(ids_fullpaths_nonemissing, chacovar)
-    print(X)
     X = prepare_data(np.array(X))
     
     # covariate extraction (age, sex, site, etc) 
@@ -164,5 +156,3 @@ def create_data_set(csv_path=CSV_PATH, atlas=None, covariates=None, verbose=Fals
         y = df_final['NORMED_MOTOR'].values > 0.5
         
     return X, y, C, site
-
-[X, y, C, site] = create_data_set(atlas='fs86subj',y_var = 'severity', covariates=['SEX', 'AGE', 'CHRONICITY'], verbose = True, chaco_type = 'chacoconn', subset = 'chronic')
