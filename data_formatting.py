@@ -6,9 +6,9 @@ import os
 import pickle
 from helper_functions import *
 import glob
+import re
 
 
-CSV_PATH = os.path.join("/home/ubuntu/enigma/Behaviour_Information_ALL_April7_2022.csv")  # Set this path accordingly
 LESIONMASK_PATH = os.path.join("/home/ubuntu/enigma/lesionmasks/")  # Set this path accordingly
 
 def prepare_data(X):
@@ -26,10 +26,20 @@ def access_elements(nums, list_index):
     return result
 
 def find_missing_scans(ids, parc, chacovar):
+    # returns list of files without missing scans, as well as ids of missing subjects
     files_in_dir = glob.glob("{}{}".format(LESIONMASK_PATH,'*_ses-1_space-MNI152_desc-T1-lesion_mask_MNI_1mm_nemo_output_sdstream_{}_{}_mean.pkl'.format(chacovar,parc)))
     list_of_files = LESIONMASK_PATH + ids + ['_ses-1_space-MNI152_desc-T1-lesion_mask_MNI_1mm_nemo_output_sdstream_{}_{}_mean.pkl'.format(chacovar,parc)]
-    missing_files = [x for x in list_of_files if x not in files_in_dir]
-    return missing_files
+    missing_scans = [x for x in list_of_files if x not in files_in_dir]
+    
+    ids_fullpaths = LESIONMASK_PATH + ids + ['_ses-1_space-MNI152_desc-T1-lesion_mask_MNI_1mm_nemo_output_sdstream_{}_{}_mean.pkl'.format(chacovar,parc)]
+    ids_fullpaths_nonemissing = [x for x in ids_fullpaths if x not in missing_scans]
+    missing_id = [x for x in ids_fullpaths if x in missing_scans]
+    missinglist=[]
+    for missing in missing_id:
+        missinglist.append(missing[len(LESIONMASK_PATH):44]) # find subid of subject(s) with missing scans
+    
+    
+    return ids_fullpaths_nonemissing, missinglist
 
 def load_chaco_data(ids,chacovar):
     for i in range(0,len(ids)):
@@ -59,11 +69,16 @@ def remove_missing_motor(df):
     df=df[~idx]
     return df 
 
+def remove_missing_scans(df, missinglist):
+    for missingscan in missinglist:
+        df = df[df['BIDS_ID'] != missingscan]
+    return df
+
 def load_csv(csv_path):
     df = pd.read_csv(csv_path, header =0)
     return df
 
-def create_data_set(csv_path=CSV_PATH, atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None):
+def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None):
     """
     Formats ENIGMA data (ChaCo scores, demographic & clinical info) for classification or regression.
 
@@ -83,6 +98,7 @@ def create_data_set(csv_path=CSV_PATH, atlas=None, covariates=None, verbose=Fals
         Label for variable set as "y". Default is 'normed_motor_scores', can be 'severity' for classification tasks.
     :return: X, C, y, sites
     """
+    
     df = load_csv(csv_path)
     
     if atlas:
@@ -101,20 +117,21 @@ def create_data_set(csv_path=CSV_PATH, atlas=None, covariates=None, verbose=Fals
         subset_data = 'chronic'
         
     if y_var:
-        y = y_var
+        y_var = y_var
     else:
-        y = 'normed_motor_scores'
+        y_var = 'normed_motor_scores'
         
     # format data frame, remove missing data
-    ids=df['BIDS_ID']
-    missing_scans = find_missing_scans(ids, parc, chacovar)
     df = remove_missing_motor(df)
 
+    ids=df['BIDS_ID']
+    
     if subset_data == 'chronic':
         df_chronic = df[df['CHRONICITY']==180]
         df_chronic = df_chronic.reset_index(drop=True)
         df_final = df_chronic
-        ids = df_chronic['BIDS_ID']    
+        ids = df_chronic['BIDS_ID']  
+      
     elif subset_data == 'acute':
         df_acute = df[df['CHRONICITY']==90]
         df_acute = df_acute.reset_index(drop=True)
@@ -123,14 +140,16 @@ def create_data_set(csv_path=CSV_PATH, atlas=None, covariates=None, verbose=Fals
     else:
         ids = df['BIDS_ID']
         df_final = df
-    
+        
+    # find subjects who have motor scores but are missing scans.
+    ids_fullpaths_nonemissing, missinglist = find_missing_scans(ids, parc, chacovar)
+    df_final = remove_missing_scans(df_final,missinglist)  
+    print('Loading data for atlas: {}, ChaCo scores: {}, subset: {}'.format(atlas, chacovar,subset_data))
     # load X data
-    ids_fullpaths = LESIONMASK_PATH + ids + ['_ses-1_space-MNI152_desc-T1-lesion_mask_MNI_1mm_nemo_output_sdstream_{}_{}_mean.pkl'.format(chacovar,parc)]
-    ids_fullpaths_nonemissing = [x for x in ids_fullpaths if x not in missing_scans]
     X = load_chaco_data(ids_fullpaths_nonemissing, chacovar)
     X = prepare_data(np.array(X))
     
-    # covariate extraction (age, sex, site, etc) 
+        # covariate extraction (age, sex, site, etc) 
     all_cov_labels = access_elements(df_final.columns.values,[3,4,6,9]) # Age, sex, chronicity, lesioned hem 
     if covariates:
         if isinstance(covariates, str):
@@ -151,8 +170,12 @@ def create_data_set(csv_path=CSV_PATH, atlas=None, covariates=None, verbose=Fals
     # load y data
     if y_var == 'normed_motor_scores':
         y = df_final['NORMED_MOTOR'].values
-        y = np.reshape(y, (len(y),1))
+       # y = np.reshape(y, (len(y),1))
+        
     elif y_var =='severity':
         y = df_final['NORMED_MOTOR'].values > 0.5
-        
+        y = np.reshape(y, (len(y),1))
+
+    
+    print('Final size of data: \n X_data: {} by {} \n Y_data: length {} '.format(X.shape[0], X.shape[1], y.shape[0]))
     return X, y, C, site

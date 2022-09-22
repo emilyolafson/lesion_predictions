@@ -2,11 +2,11 @@
 
 %% 1. violin/boxplots of R^2 
 for i=1:100
-    r2_shen(i)=mean(load(sprintf('~/GIT/ENIGMA/enigma_disconnections/correlation_pairwiseSDC_shen268/correlationp%i_SC_all_explvar.txt', i-1)))
+    r2_shen(i)=mean(load(sprintf('~/GIT/ENIGMA/enigma_disconnections/correlation_pairwiseSDC_shen268/correlationp%i_SC_all_explvar.txt', i-1)));
 end
 
 for i=1:100
-    r2_fs(i)=mean(load(sprintf('~/GIT/ENIGMA/enigma_disconnections/correlation_pairwiseSDC_fs86/correlationp%i_SC_all_explvar.txt', i-1)))
+    r2_fs(i)=mean(load(sprintf('~/GIT/ENIGMA/enigma_disconnections/correlation_pairwiseSDC_fs86/correlationp%i_SC_all_explvar.txt', i-1)));
 end
 
 violinplot([r2_shen; r2_fs], [zeros(100,1);ones(100,1)])

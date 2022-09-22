@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np 
 import seaborn as sns
 import scipy.io as sio
+from scipy.stats import pearsonr
 import os
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score, KFold, StratifiedKFold
 from sklearn import preprocessing, linear_model
@@ -10,9 +11,21 @@ from sklearn.metrics import explained_variance_score, r2_score, make_scorer
 from sklearn.preprocessing import StandardScaler
 from joblib import parallel_backend, Parallel, delayed
 import matplotlib
-
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import Lasso, Ridge, ElasticNet
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.decomposition import PCA
+from sklearn.feature_selection import SelectKBest,f_regression
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import figure
+import warnings
+import math
+from functools import partial
+
+warnings.filterwarnings("ignore", message="RuntimeWarning: invalid value encountered in true_divide corr /= X_norms")
+
+
 def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
     '''
     FROM: https://stackoverflow.com/questions/7404116/defining-the-midpoint-of-a-colormap-in-matplotlib
@@ -101,6 +114,25 @@ def np_pearson_cor(x, y):
     
     # bound the values to -1 to 1 in the event of precision issues
     return np.maximum(np.minimum(result, 1.0), -1.0)
+
+
+def np_pearson_cor_abs(x, y):
+    '''Fast array-based pearson correlation that is more efficient. 
+    FROM: https://cancerdatascience.org/blog/posts/pearson-correlation/.
+        x - input N x p
+        y - output N x 1
+        
+        returns correlation p x 1 '''
+    print(x.shape)
+    print(y.shape)
+    xv = x - x.mean(axis=0)
+    yv = y - y.mean(axis=0)
+    xvss = (xv * xv).sum(axis=0)
+    yvss = (yv * yv).sum(axis=0)
+    result = np.matmul(xv.transpose(), yv) / np.sqrt(np.outer(xvss, yvss))
+    
+    # bound the values to -1 to 1 in the event of precision issues
+    return abs(np.maximum(np.minimum(result, 1.0), -1.0))
 
 
 def naive_pearson_cor(X, Y):
@@ -236,13 +268,10 @@ def gcv_ridge(hyperparam, x, y, k, featsel='None', a=10):
     
     # set alpha in ridge regression
     alpha = hyperparam
-    # Initialize lists with final results
-    y_pred_total = []
-    y_valid_total = []
-    R2 = []
+
     comp = []
-    correl=[]
     explvar=[]
+    
     # Split data into test and train: random state fixed for reproducibility
     kf = KFold(n_splits=k,shuffle=True,random_state=43)
     
@@ -250,133 +279,23 @@ def gcv_ridge(hyperparam, x, y, k, featsel='None', a=10):
     for train_index, valid_index in kf.split(x):
         x_train, x_valid = x[train_index], x[valid_index]
         y_train, y_valid = y[train_index], y[valid_index]
-        
-        #x_train, x_valid = scale_data(x_train, x_valid)
-        
+                
         if featsel=='correlation':
             x_train, x_valid, ind = feature_select_correlation(x_train, x_valid, y_train, a)
-            comp.append(ind)
             
         elif featsel=='PCA':
             x_train, x_valid, components = feature_select_PCA(x_train, x_valid, a)
-            comp.append(components)
         
         # Fit ridge regression with (x_train_scaled, y_train), and predict x_train_scaled
         regr = linear_model.Ridge(alpha=alpha, normalize=True, max_iter=1000000, random_state=42)
         y_pred = regr.fit(x_train, y_train).predict(x_valid)
-
-        R2.append(r2_score(y_valid, y_pred))
-        correlation=np_pearson_cor(y_pred, y_valid)[0]
-        correl.append(correlation)
         explvar.append(explained_variance_score(y_valid, y_pred))
-        
-        # Append y_pred and y_valid values of this k-fold step to list with all values
-        y_pred_total.append(y_pred)
-        y_valid_total.append(y_valid)
- 
-    # note: don't use r2_score for ridge regression bc it does not account for bias error
-    r2=np.mean(R2)
-    
-    cor=np.mean(correl)
     
     # use explained_variance_score instead:
     expl_var=np.mean(explvar)
     
     return expl_var
 
-def gcv_ridge_strat(hyperparam, x, y, k, chronic_bin, featsel='None', a=10):
-    """Perform gridsearch using k-fold cross-validation on a single hyperparameter 
-    in ridge regression, and return mean R^2 across inner folds.
-    
-    Inputs: 
-        hyperparam = list of hyperparameter values to train & test on validation est
-        x = N x p input matrix
-        y = 1 x p variable to predict
-        k = k value in k-fold cross validation 
-        featsel = type string, feature selection method, default="None"
-            'None' - no feature selection; use all variables for prediction
-            'correlation'- calculate the abs. val. Pearson correlation between all training variables with the varibale to predict. Use the highest 'a' variables based on their correlation for prediction
-            'PCA' - perform PCA on the training variables and use the top 'a' PCs as input variables, by variance explained, for prediction
-        a = number of features to select using one of the above methods, default=10 
-    
-    Returns:
-        expl_var = the mean R^2 (coefficient of determination) across inner loop folds for the given hyperparameter
-    """
-    
-    # make sure k is reasonable 
-    if x.shape[0]/k <= 2:
-        raise Exception('R^2 is not well-defined with less than 2 subjects.')   
-    
-    # set alpha in ridge regression
-    alpha = hyperparam
-    # Initialize lists with final results
-    y_pred_total = []
-    y_valid_total = []
-    R2 = []
-    comp = []
-    correl=[]
-    explvar=[]
-    # Split data into test and train: random state fixed for reproducibility
-    kf = StratifiedKFold(n_splits=k,shuffle=True,random_state=43)
-    
-    # K-fold cross-validation 
-    for train_index, valid_index in kf.split(x, y, groups=chronic_bin):
-        x_train, x_valid = x[train_index], x[valid_index]
-        y_train, y_valid = y[train_index], y[valid_index]
-        
-        chron_train=chronic_bin[train_index] 
-        chron_valid=chronic_bin[valid_index]
-        
-        #x_train, x_valid = scale_data(x_train, x_valid)
-        
-        if featsel=='correlation':
-            x_train, x_valid, ind = feature_select_correlation(x_train, x_valid, y_train, a)
-            comp.append(ind)
-            
-        elif featsel=='PCA':
-            x_train, x_valid, components = feature_select_PCA(x_train, x_valid, a)
-            comp.append(components)
-        
-        # add chronicity variable after features selection
-        chron_train=np.reshape(np.double(chron_train), (x_train.shape[0], 1))
-        x_train=np.concatenate((x_train, chron_train),axis=1)
-        
-        chron_valid=np.reshape(np.double(chron_valid), (x_valid.shape[0], 1))
-        x_valid=np.concatenate((x_valid, chron_valid),axis=1)
-        
-        # Fit ridge regression with (x_train_scaled, y_train), and predict x_train_scaled
-        regr = linear_model.Ridge(alpha=alpha, normalize=True, max_iter=1000000, random_state=42)
-        y_pred = regr.fit(x_train, y_train).predict(x_valid)
-
-        R2.append(r2_score(y_valid, y_pred))
-        correlation=np_pearson_cor(y_pred, y_valid)[0]
-        correl.append(correlation)
-        explvar.append(explained_variance_score(y_valid, y_pred))
-        
-        # Append y_pred and y_valid values of this k-fold step to list with total values
-        y_pred_total.append(y_pred)
-        y_valid_total.append(y_valid)
-
-    # note: don't use r2_score for ridge regression bc it does not account for bias error
-    r2=np.mean(R2)
-    
-    cor=np.mean(correl)
-    
-    # use explained_variance_score instead:
-    expl_var=np.mean(explvar)
-    
-    
-    return expl_var
-
-def parallel_featsearch_strat(alpha, X, Y, k, chronic_bin, featselect, feat):
-    ''' Stratified grid search in parallel.
-
-    Returns:
-        expl_var - explained variance for given combination of alpha/feat/featselect'''
-    
-    expl_var=gcv_ridge_strat(alpha, X, Y, k, chronic_bin, featselect, feat)
-    
-    return expl_var
 
 def parallel_featsearch(alpha, X, Y, k, featselect, feat):
     ''' Grid search in parallel.
@@ -386,53 +305,6 @@ def parallel_featsearch(alpha, X, Y, k, featselect, feat):
     
     expl_var=gcv_ridge(alpha, X, Y, k, featselect, feat)
     return expl_var
-
-# Inner loop - grid search
-def gridsearch_cv_strat(k, x, y, chronic_bin, featselect, alphas, feats):
-    ''' Performs grid search using fixed predefined hyperparameter ranges and returns the best alpha and # of features for 
-        a given training/validation sample. Uses stratified k-fold cross-validation for inner loop.
-        
-        Input:
-            x = N x p input matrix
-            y = 1 x p variable to predict
-            k = k value in k-fold cross validation 
-            featsel = type string, feature selection method, default="None"
-                'None' - no feature selection; use all variables for prediction
-                'correlation'- calculate the abs. val. Pearson correlation between all training variables with the varibale to predict. Use the highest 'a' variables based on their correlation for prediction
-                'PCA' - perform PCA on the training variables and use the top 'feats' PCs as input variables, by variance explained, for prediction
-            chronic_bin - stratification binary variable
-            featselect - type of features selection. can be "correlation" or "PCA"
-            alphas - range of alpha parameters to search 
-            feats - range of # features to search
-        
-        Returns:
-            bestalpha - optimal alpha based on grid search
-            bestfeats - optimal number of features based on grid search
-            bestr2 - mean R^2 across folds obtained for the optimal combination of hyperparameters
-            gcv_values - R^2 across all combinations of hyperparametrs.'''
-    
-    print(str(k)+"-fold cross-validation results in "+str((x.shape[0]/k)*(k-1))+ " subjects in the training set, and "+ str(x.shape[0]/k) + " subjects in the validation set")
-
-    # initialize array to store r2
-    gcv_values=np.empty(shape=(len(alphas),len(feats)),dtype='float')
-
-    # iterate through alphas
-    for alpha in alphas:
-        row, = np.where(alphas==alpha)
-        
-        # run feature selection (# of components) in parallel
-        gcv=Parallel(n_jobs=-1,verbose=0)(delayed(parallel_featsearch_strat)(alpha,x, y, k, chronic_bin, featselect, feat) for feat in feats)
-        gcv=np.array(gcv)
-        gcv_values[row]=gcv
-            
-        row=np.argmax(np.max(gcv_values, axis=1))
-        col=np.argmax(np.max(gcv_values, axis=0))
-
-    bestalpha=alphas[row]
-    bestfeats=feats[col]
-    bestr2=np.max(gcv_values)
-
-    return bestalpha, bestfeats, bestr2, gcv_values
 
 # Inner loop - grid search
 def gridsearch_cv(k, x, y, featselect, alphas, feats):
@@ -479,40 +351,6 @@ def gridsearch_cv(k, x, y, featselect, alphas, feats):
 
     return bestalpha, bestfeats, bestr2, gcv_values
 
-def gridsearch_plsr(k, x, y, components):
-    ''' Performs grid search for PLS regression using fixed predefined hyperparameter range and returns the best n components for 
-        a given training/validation sample. Calculates PRESS (preedicted residual sum of squares) for each subject.
-
-        Returns:
-            presssum - sum of PRESS for all subjects'''
-    
-    presssum=[]
-    # iterate through components
-    for comp in components:
-        
-        row, = np.where(components==comp)
-        
-        kf = KFold(n_splits=k,shuffle=True,random_state=43)
-        
-        scores=[]
-        press=[]
-        
-        # calculate PRESS for each held-out subject
-        for i in range(0, x.shape[0]):
-            trainx = np.delete(x, i, axis=0)
-            trainy = np.delete(y, i, axis=0)
-            
-            pls = PLSRegression(n_components=comp, scale=True, copy=False)
-            pls.fit(trainx, trainy)
-
-            ypred = pls.predict(x[i,:].reshape(1, -1) )
-            ytrue=y[i].reshape(1, -1)
-            press.append(sum((ytrue.T-ypred.T)**2))
-            
-        presssum.append(np.sum(press))
-        
-    return presssum
-
 def plot_figure(gcv_values, string, midpoint):
     '''Plots the R^2 value obtained across all grid-search pairs (# features and regularization values.)
     
@@ -554,4 +392,84 @@ def plot_figure(gcv_values, string, midpoint):
     plt.scatter(row,col,color='k')
     plt.savefig(results_dir+string+ '.png')
     plt.show()
+     
+     
+def determine_featselect_range(X):
+    X_max_dim = X.shape[1]
+    X_min_dim = 5
+    n=30
+    base = 2
+    k_range=np.logspace(math.log(X_min_dim,base),math.log(X_max_dim,base), n,base=base, dtype=int)
+    return k_range
+
+def get_models(model_type='regression', model_list=None):
+    mdls=[]
+    if model_type == 'regression':
+        if 'ridge' in model_list:
+            ridge = Pipeline([('featselect', SelectKBest(f_regression)), ('ridge', Ridge(normalize=True, max_iter=1000000, random_state=0))])
+            mdls.append(ridge)
+        if 'elastic_net' in model_list:
+            elastic_net =  Pipeline([('featselect', SelectKBest(f_regression)),('elastic_net', ElasticNet(normalize=True, max_iter=1000000, random_state=0))])
+            mdls.append(elastic_net)
+        if 'lasso' in model_list:
+            lasso =  Pipeline([('featselect', SelectKBest(f_regression)),('lasso', Lasso(normalize=True, max_iter=1000000, random_state=0))])
+            mdls.append(lasso)
+        mdls_labels = model_list
+        
+        return mdls, mdls_labels
+        
+    elif model_type == 'classification': 
+        svm = Pipeline([('svm', SVC(probability=True, class_weight='balanced', kernel='linear', random_state=0))])
+        rbf_svm = Pipeline([('svm', SVC(probability=True, class_weight='balanced', kernel='rbf', random_state=0))])
+        log = Pipeline([('logistic', LogisticRegression(class_weight='balanced', solver='liblinear', random_state=0))])
+        pca_log = Pipeline([('pca', PCA(n_components=0.9)),
+                            ('logistic', LogisticRegression(class_weight='balanced', solver='liblinear', random_state=0))])
+
+        mdls = [svm, rbf_svm, log, pca_log]
+        mdls_labels = ['svm', 'rbf_svm', 'log', 'pca_log']
+        
+    return mdls, mdls_labels
+
+def inner_loop(mdl, mdl_label, X, Y, cv, n_jobs):
+    
+    k_range = determine_featselect_range(X)
+    
+    if mdl_label=='ridge':
+        grid_params ={'ridge__alpha': np.logspace(-2, 2, 30, base=10,dtype=None),
+                      'featselect__k':k_range}
+        score = 'explained_variance'
+        
+    elif mdl_label=='elastic_net':
+        grid_params ={'elastic_net__alpha': np.logspace(-2, 2, 30, base=10,dtype=None),
+                      'featselect__k':k_range}
+        score = 'explained_variance'
+        
+    elif mdl_label=='lasso':
+        grid_params ={'lasso__alpha': np.logspace(-2, 2, 30, base=10,dtype=None),
+                      'featselect__k':k_range}
+        score = 'explained_variance'
+        
+    elif mdl_label == 'rfc':
+        grid_params = {'rfc__n_estimators': np.linspace(10, 200, 5, dtype=int),  # Should be as HIGH as possible
+                       'rfc__max_features': ['sqrt', 'log2', 0.25, 0.5, 0.75]}
+    elif 'svm' in mdl_label:
+        grid_params = {'svm__C': [0.0001, 0.001, 0.01, 0.1, 1]}
+        if 'rbf' in mdl_label:
+            grid_params = {'svm__C': [0.0001, 0.001, 0.01, 0.1, 1],
+                           'svm__gamma': [0.001, 0.01, 0.1, 1]}
+    elif 'log' in mdl_label:
+        grid_params = {'logistic__C': [0.0001, 0.001, 0.01, 0.1, 1, 10],
+                       'logistic__penalty': ['l1', 'l2']}
+    else:
+        print('Model not found..')
+        return mdl, None
+    
+    grid_search = GridSearchCV(estimator=mdl, param_grid=grid_params, scoring=score, cv=cv, refit=True, verbose=0,
+                               n_jobs=n_jobs, return_train_score=False, pre_dispatch='2*n_jobs')
+    
+    
+    grid_search.fit(X, Y)
+
+    best_mdl = grid_search.best_estimator_
+    return best_mdl
 

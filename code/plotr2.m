@@ -8,7 +8,7 @@ for i=0:99
 end
 
 for i=0:99
-    allvar3(i+1)=mean(load(sprintf('~/GIT/ENIGMA/results/correlation_pairwiseSDC_fs86/correlationp%i_SC_all_explvar.txt', i)));
+    allvar3(i+1)=mean(load(sprintf('~/GIT/ENIGMA/enigma_disconnections/correlation_pairwiseSDC_fs86/correlationp%i_SC_all_explvar.txt', i)));
 end
 
 cstll=load('~/GIT/ENIGMA/results/cst_ll/CSTLL_all_explvar.txt');
