@@ -1,7 +1,7 @@
 % load scores for each model
 
 clear options
-atlases = {'fs86sub','shen268'};
+atlases = {'fs86subj','shen268'};
 chaco_types = {'chacovol'};
 crossval_schemes = [1, 5];
 
@@ -26,25 +26,25 @@ for atlas = 1:length(atlases)
             options(8).name ='subset';
             options(8).value = 'chronic';
 
-            [r2scores, correl, nullr2scores, nullcorrel] = load_null_models(options);
+            [r2scores, correl, nullr2scores, nullcorrel, ~, ~,~] = load_models(options);
         
             % calcualte the mean performance of all null distributions
             null_perm=29
             clear meanperm
-            for n=1:null_perm
-                meanperm(n,:)=mean(nullr2scores(:,n,:),3)';
-            end
+           % for n=1:null_perm
+           %    meanperm(n,:)=mean(nullr2scores(:,n,:),3)';
+           % end
 
             % calcualte the mean performance of all null distributions
             null_perm=29
-            for n=1:null_perm
-                meanperm_corr(n,:)=mean(nullcorrel(:,n,:),3)';
-            end
+            %for n=1:null_perm
+            %    meanperm_corr(n,:)=mean(nullcorrel(:,n,:),3)';
+            %end
 
             writematrix(r2scores, sprintf('r2scores_%s_%s_%s.txt', atlas,chaco_type, num2str(crossval)));
             writematrix(correl, sprintf('corrs_%s_%s_%s.txt', atlas,chaco_type, num2str(crossval)));
-            writematrix(meanperm, sprintf('null_r2scores_%s_%s_%s.txt', atlas,chaco_type, num2str(crossval)));
-            writematrix(meanperm_corr, sprintf('null_corrs_%s_%s_%s.txt', atlas,chaco_type, num2str(crossval)));
+           % writematrix(meanperm, sprintf('null_r2scores_%s_%s_%s.txt', atlas,chaco_type, num2str(crossval)));
+           % writematrix(meanperm_corr, sprintf('null_corrs_%s_%s_%s.txt', atlas,chaco_type, num2str(crossval)));
         end
     end
 end

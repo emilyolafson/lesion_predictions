@@ -36,6 +36,9 @@ null_corrs_shen268_chacovol_5<-read.table("/Users/emilyolafson/GIT/ENIGMA/enigma
 corrs_shen268_chacoconn_5<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_shen268_chacoconn_5.txt",sep = ",") )
 
 
+
+
+
 len=25
 
 GeomSplitViolin <- ggproto("GeomSplitViolin", GeomViolin, draw_group = function(self, data, ..., draw_quantiles = NULL){
@@ -65,15 +68,18 @@ geom_split_violin <- function (mapping = NULL, data = NULL, stat = "ydensity", p
 }
 
 clus=character()
-clus[1]<-"KFold"
-clus[2]<-"GroupKFold"
+clus[1]<-"1_KFold"
+clus[2]<-"2_GroupKFold"
+clus[3] <-"3_KFold_CONN"
+clus[4]<-"4_GroupKFold_CONN"
+
 
 # Create vector with stroke & control labels for each [23, 24] x 5 (sessions)
 len1=25
 len2=25
 Condition<-NULL
 x<-NULL
-for(i in 1:2){
+for(i in 1:4){
   Condition=c(Condition, rep('FreeSurfer-86 region', len1), rep('Shen 268-region', len2))
   x=c(x, rep(clus[i], 50))
 }
@@ -83,15 +89,22 @@ y1=r2scores_fs86subj_chacovol_1
 y2=r2scores_shen268_chacovol_1
 y3=r2scores_fs86subj_chacovol_5
 y4=r2scores_shen268_chacovol_5
-yall=c(y1, y2,y3,y4)
+
+y5=r2scores_fs86subj_chacoconn_1
+y6=r2scores_shen268_chacoconn_1
+y7=r2scores_fs86subj_chacoconn_5
+y8=r2scores_shen268_chacoconn_5
+yall=c(y1, y2,y3,y4,y5,y6,y7,y8)
 y=yall
 
 my_data = data.frame(y,x,Condition)
-#pdf(file='/Users/emilyolafson/GIT/dynamic-brainstates/results/shen268/state1_ar.pdf', width=10, height=8)
+
+
+pdf(file='/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/figures/r2_chacovolchacovonn.pdf', width=10, height=5)
 
 p <- ggplot(my_data, aes(x, y, fill = Condition)) 
 p<- p+ geom_boxplot(binaxis='y', binwidth=0.01,stackdir='center',width = 0.5,position=position_dodge(1))
-p+theme_classic(base_size = 22,base_line_size = 1) + ggtitle("") #+ylim(1.2,3) #+ylim(0.1, 0.4) #+≈
+p + ggtitle("") +scale_fill_manual(values=c("#2b7fed", "#2bbfec")) 
 
 dev.off()
 
@@ -102,52 +115,241 @@ y1=corrs_fs86subj_chacovol_1
 y2=corrs_shen268_chacovol_1
 y3=corrs_fs86subj_chacovol_5
 y4=corrs_shen268_chacovol_5
-yall=c(y1, y2,y3,y4)
+
+y5=corrs_fs86subj_chacoconn_1
+y6=corrs_shen268_chacoconn_1
+y7=corrs_fs86subj_chacoconn_5
+y8=corrs_shen268_chacoconn_5
+yall=c(y1, y2,y3,y4,y5,y6,y7,y8)
 y=yall
 
 my_data = data.frame(y,x,Condition)
-#pdf(file='/Users/emilyolafson/GIT/dynamic-brainstates/results/shen268/state1_ar.pdf', width=10, height=8)
+pdf(file='/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/figures/corrs_chacovolchacovonn.pdf', width=10, height=5)
 
 p <- ggplot(my_data, aes(x, y, fill = Condition)) 
 p<- p+ geom_boxplot(binaxis='y', binwidth=0.01,stackdir='center',width = 0.5,position=position_dodge(1))
-p+theme_classic(base_size = 22,base_line_size = 1) + ggtitle("") #+ylim(1.2,3) #+ylim(0.1, 0.4) #+≈
+p + ggtitle("") +scale_fill_manual(values=c("#2b7fed", "#2bbfec")) 
+
+dev.off()
 
 
 
-## CHACOCONN--------
-# R2
+#KW Test ----------
+# r2 values.
+clus=character()
+clus[1]<-"ChaCoVol"
+clus[2]<-"ChaCoVol"
+clus[3] <-"ChaCoConn"
+clus[4]<-"ChaCoConn"
+
+clus2=character()
+clus2[1]<-"KFold"
+clus2[2]<-"GroupKFold"
+clus2[3] <-"KFold"
+clus2[4]<-"GroupKFold"
+
+# Create vector with stroke & control labels for each [23, 24] x 5 (sessions)
+len1=25
+len2=25
+atlas<-NULL
+chacotype<-NULL
+crossval<-NULL
+for(i in 1:4){
+  atlas=c(atlas, rep('FreeSurfer-86 region', len1), rep('Shen 268-region', len2))
+  chacotype=c(chacotype, rep(clus[i], 50))
+  crossval = c(crossval, rep(clus2[i],50))
+}
+
 y<-NULL
-y1=r2scores_fs86subj_chacoconn_1
-y2=r2scores_shen268_chacoconn_1
-y3=r2scores_fs86subj_chacoconn_5
-y4=r2scores_shen268_chacoconn_5
-yall=c(y1, y2,y3,y4)
+y1=r2scores_fs86subj_chacovol_1
+y2=r2scores_shen268_chacovol_1
+y3=r2scores_fs86subj_chacovol_5
+y4=r2scores_shen268_chacovol_5
+
+y5=r2scores_fs86subj_chacoconn_1
+y6=r2scores_shen268_chacoconn_1
+y7=r2scores_fs86subj_chacoconn_5
+y8=r2scores_shen268_chacoconn_5
+yall=c(y1, y2,y3,y4,y5,y6,y7,y8)
 y=yall
 
-my_data = data.frame(y,x,Condition)
-#pdf(file='/Users/emilyolafson/GIT/dynamic-brainstates/results/shen268/state1_ar.pdf', width=10, height=8)
+my_data = data.frame(y,chacotype,crossval,atlas)
 
-p <- ggplot(my_data, aes(x, y, fill = Condition)) 
-p<- p+ geom_boxplot(binaxis='y', binwidth=0.01,stackdir='center',width = 0.5,position=position_dodge(1))
-p+theme_classic(base_size = 22,base_line_size = 1) + ggtitle("") #+ylim(1.2,3) #+ylim(0.1, 0.4) #+≈
+# tests 1: FS86 vs SHEN268
+pvals<-NULL
+# a. KFold, ChaCoVol
+result <- wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals <-c(pvals,  result$p.value)
+
+# b. GroupKFold, ChaCoVol
+result<-wilcox.test(my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals <-c(pvals,  result$p.value)
+
+# c KFold, ChaCoConn
+result <- wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals <-c(pvals,  result$p.value)
+
+# d. GroupKFold, ChaCoConn
+result<-wilcox.test(my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals <-c(pvals,  result$p.value)
 
 
-## Correlation
+# tests 2: KFold vs GroupKFold
+pvals2<-NULL
+# a. FS86, ChaCoVol
+result <- wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals2 <-c(pvals2,  result$p.value)
+
+# b. FS86, ChaCoConn
+result<-wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals2 <-c(pvals2,  result$p.value)
+
+# c. Shen268, ChaCoVol
+result <- wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='Shen 268-region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='FreeSurfer-86 region'),]$y, paired=TRUE) 
+pvals2 <-c(pvals2,  result$p.value)
+
+# d. Shen268, ChaCoConn
+result<-wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='Shen 268-region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='FreeSurfer-86 region'),]$y, paired=TRUE) 
+pvals2 <-c(pvals2,  result$p.value)
+
+
+# tests 3: ChaCoConn Vs ChaCoVol
+pvals3<-NULL
+# a. GroupKFold, FS86
+result <- wilcox.test(my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='FreeSurfer-86 region'),]$y, paired=TRUE) 
+pvals3 <-c(pvals3,  result$p.value)
+
+# b. KFold, FS86
+result<-wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='FreeSurfer-86 region'),]$y, paired=TRUE) 
+pvals3 <-c(pvals3,  result$p.value)
+
+# c.GroupKFold, Shen268
+result <- wilcox.test(my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='Shen 268-region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals3 <-c(pvals3,  result$p.value)
+
+# d. KFold, Shen268
+result<-wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='Shen 268-region'),]$y, my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals3 <-c(pvals3,  result$p.value)
+
+pvals_r2_all <- c(pvals, pvals2, pvals3)
+pvals_r2_all_FDR <-p.adjust(pvals_r2_all, method = 'fdr', n = length(pvals_r2_all))
+# list of tests
+tests = c("FS86 vs Shen:  KFold, ChaCoVol", "FS86 vs Shen:  GroupKFold, ChaCoVol", "FS86 vs Shen:  KFold, ChaCoConn",  "FS86 vs Shen:  GroupKFold, ChaCoConn", 
+          "KFold vs GroupKFold: FS86, ChaCoVol", "KFold vs GroupKFold: FS86, ChaCoConn", "KFold vs GroupKFold: Shen268, ChaCoVol", "KFold vs GroupKFold: Shen268, ChaCoConn",
+          "ChaCoConn Vs ChaCoVol: GroupKFold, FS86","ChaCoConn Vs ChaCoVo: KFold, FS86", "ChaCoConn Vs ChaCoVo: GroupKFold, Shen268", "ChaCoConn Vs ChaCoVo: KFold, Shen268")
+
+r2_comparisons <- cbind(tests, pvals_r2_all_FDR)
+
+
+#KW Test ----------
+# r2 values.
+clus=character()
+clus[1]<-"ChaCoVol"
+clus[2]<-"ChaCoVol"
+clus[3] <-"ChaCoConn"
+clus[4]<-"ChaCoConn"
+
+clus2=character()
+clus2[1]<-"KFold"
+clus2[2]<-"GroupKFold"
+clus2[3] <-"KFold"
+clus2[4]<-"GroupKFold"
+
+# Create vector with stroke & control labels for each [23, 24] x 5 (sessions)
+len1=25
+len2=25
+atlas<-NULL
+chacotype<-NULL
+crossval<-NULL
+for(i in 1:4){
+  atlas=c(atlas, rep('FreeSurfer-86 region', len1), rep('Shen 268-region', len2))
+  chacotype=c(chacotype, rep(clus[i], 50))
+  crossval = c(crossval, rep(clus2[i],50))
+}
 
 y<-NULL
-y1=corrs_fs86subj_chacoconn_1
-y2=corrs_shen268_chacoconn_1
-y3=corrs_fs86subj_chacoconn_5
-y4=corrs_shen268_chacoconn_5
-yall=c(y1, y2,y3,y4)
+y1=corrs_fs86subj_chacovol_1
+y2=corrs_shen268_chacovol_1
+y3=corrs_fs86subj_chacovol_5
+y4=corrs_shen268_chacovol_5
+
+y5=corrs_fs86subj_chacoconn_1
+y6=corrs_shen268_chacoconn_1
+y7=corrs_fs86subj_chacoconn_5
+y8=corrs_shen268_chacoconn_5
+yall=c(y1, y2,y3,y4,y5,y6,y7,y8)
 y=yall
 
-my_data = data.frame(y,x,Condition)
-#pdf(file='/Users/emilyolafson/GIT/dynamic-brainstates/results/shen268/state1_ar.pdf', width=10, height=8)
+my_data = data.frame(y,chacotype,crossval,atlas)
 
-p <- ggplot(my_data, aes(x, y, fill = Condition)) 
-p<- p+ geom_boxplot(binaxis='y', binwidth=0.01,stackdir='center',width = 0.5,position=position_dodge(1))
-p+theme_classic(base_size = 22,base_line_size = 1) + ggtitle("") #+ylim(1.2,3) #+ylim(0.1, 0.4) #+≈
+# tests 1: FS86 vs SHEN268
+pvals<-NULL
+# a. KFold, ChaCoVol
+result <- wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals <-c(pvals,  result$p.value)
+
+# b. GroupKFold, ChaCoVol
+result<-wilcox.test(my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals <-c(pvals,  result$p.value)
+
+# c KFold, ChaCoConn
+result <- wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals <-c(pvals,  result$p.value)
+
+# d. GroupKFold, ChaCoConn
+result<-wilcox.test(my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals <-c(pvals,  result$p.value)
+
+
+# tests 2: KFold vs GroupKFold
+pvals2<-NULL
+# a. FS86, ChaCoVol
+result <- wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals2 <-c(pvals2,  result$p.value)
+
+# b. FS86, ChaCoConn
+result<-wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals2 <-c(pvals2,  result$p.value)
+
+# c. Shen268, ChaCoVol
+result <- wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='Shen 268-region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='FreeSurfer-86 region'),]$y, paired=TRUE) 
+pvals2 <-c(pvals2,  result$p.value)
+
+# d. Shen268, ChaCoConn
+result<-wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='Shen 268-region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='FreeSurfer-86 region'),]$y, paired=TRUE) 
+pvals2 <-c(pvals2,  result$p.value)
+
+
+# tests 3: ChaCoConn Vs ChaCoVol
+pvals3<-NULL
+# a. GroupKFold, FS86
+result <- wilcox.test(my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='FreeSurfer-86 region'),]$y, paired=TRUE) 
+pvals3 <-c(pvals3,  result$p.value)
+
+# b. KFold, FS86
+result<-wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='FreeSurfer-86 region'),]$y, my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='FreeSurfer-86 region'),]$y, paired=TRUE) 
+pvals3 <-c(pvals3,  result$p.value)
+
+# c.GroupKFold, Shen268
+result <- wilcox.test(my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='Shen 268-region'),]$y, my_data[(my_data$crossval=='GroupKFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals3 <-c(pvals3,  result$p.value)
+
+# d. KFold, Shen268
+result<-wilcox.test(my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoConn') & (my_data$atlas=='Shen 268-region'),]$y, my_data[(my_data$crossval=='KFold') & (my_data$chacotype=='ChaCoVol') & (my_data$atlas=='Shen 268-region'),]$y, paired=TRUE) 
+pvals3 <-c(pvals3,  result$p.value)
+
+
+pvals_corr_all <- c(pvals, pvals2, pvals3)
+pvals_corr_all_FDR <-p.adjust(pvals_corr_all, method = 'fdr', n = length(pvals_corr_all))
+
+# list of tests
+tests = c("FS86 vs Shen:  KFold, ChaCoVol", "FS86 vs Shen:  GroupKFold, ChaCoVol", "FS86 vs Shen:  KFold, ChaCoConn",  "FS86 vs Shen:  GroupKFold, ChaCoConn", 
+          "KFold vs GroupKFold: FS86, ChaCoVol", "KFold vs GroupKFold: FS86, ChaCoConn", "KFold vs GroupKFold: Shen268, ChaCoVol", "KFold vs GroupKFold: Shen268, ChaCoConn",
+          "ChaCoConn Vs ChaCoVol: GroupKFold, FS86","ChaCoConn Vs ChaCoVo: KFold, FS86", "ChaCoConn Vs ChaCoVo: GroupKFold, Shen268", "ChaCoConn Vs ChaCoVo: KFold, Shen268")
+
+corr_comparisons <- cbind(tests, pvals_corr_all_FDR)
+
+
 
 
 
