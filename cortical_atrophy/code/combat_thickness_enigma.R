@@ -1,12 +1,12 @@
 if (!requireNamespace("BiocManager", quietly = TRUE))
-  install.packages("BiocManager")
 library(devtools)
-install_github("vqv/ggbiplot")
 library(plotly)
 library(ggfortify)
 library(ggplot2)
 library(sva)
 library(RColorBrewer)
+library(gridExtra)
+
 n <- 30
 qual_col_pals = brewer.pal.info[brewer.pal.info$category == 'qual',]
 col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
@@ -49,11 +49,12 @@ for (i in 1:70){
 }
 
 d2<-data.frame(residualized_regionwise_data, batchvar)
+clrs <- wes_palette("Zissou1", 28, type = "continuous")
 
 # PCA
 pcavar <- prcomp(d2[1:70] , center = TRUE,scale. = TRUE)
 dev.on()
-pdf(width=20, height=6.4,'/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/PCA_3PCs_age_sex_tss_regressed_enigma_raw.pdf')
+pdf(width=20, height=6.4,'/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/figures/PCA_3PCs_age_sex_tss_regressed_enigma_raw.pdf')
 
 p1<- autoplot(pcavar, x=1, y=2, data = d2,size=3, colour = 'batchvar',alpha=0.5)+theme_classic()+scale_color_manual(values = c(col_vector))+theme(text = element_text(size=30)) + theme(legend.position="none", legend.title = element_blank())
 p2<- autoplot(pcavar, x=2, y=3, data = d2,size=3,colour = 'batchvar',alpha=0.5)+theme_classic()+scale_color_manual(values = c(col_vector))+theme(text = element_text(size=30))+ theme(legend.position="none",legend.title = element_blank())
@@ -62,20 +63,85 @@ plot_grid(p1, p2, p3, ncol=3, rel_widths = c(1,1,1.3),label_size = 30)
 
 dev.off()
 
-mod =cbind(sex,age,tss)
+
 # COMBAT
+mod =cbind(sex,age,tss)
 
-output <- ComBat(
-  dat=thicknesst,
-  batch=batchvar,
-  mod = mod,
-  par.prior = TRUE,
-  prior.plots = TRUE,
-  mean.only = FALSE,
-  ref.batch = NULL,
-  BPPARAM = bpparam("SerialParam")
-)
+outputn <- neuroCombat(dat=thicknesst,batch=batchvar,mod=mod)
+output <- outputn$dat.combat
 
+
+# visualize combat method.
+pdf(width=10, height=10,'/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/figures/enigma_empirical_estimated_param_gamma.pdf')
+
+ests <- outputn$estimates
+gammahats <- ests$gamma.star
+sites <- rownames(gammahats)
+
+clrs <- wes_palette("Zissou1", 28, type = "continuous")
+
+myplots <- list()  # new empty list
+for(n in 1:28){
+  x <-  seq(-3, 2, length=70)
+  gammahat <- as.double(gammahats[n,])
+  y <-  dnorm(seq(-3, 2, length=70), mean=ests$gamma.bar[n], sd=sqrt(ests$t2[n]))
+  Sites <-sites[n]
+ 
+  df<-data.frame(x,y, gammahat,Sites)
+  p1 <- ggplot(df, aes(x=x,color=Sites))+ theme_classic()+
+    geom_line(aes(x,y,color=Sites), data = NULL, linetype = "solid",size =0.7)+
+    scale_color_manual(values = clrs[n],labels = c('HCP_AGING', 'HCP_YA'))+
+    theme(legend.position="none")+
+    geom_density(aes(x=gammahat,color=Sites), data = NULL, linetype = "dotted",size =0.7)+
+    theme(text = element_text(size=8),plot.title = element_text(hjust = 0.5))+
+    ylab('Density')+xlab('Gamma')+
+    ggtitle(sites[n])
+  
+  
+  myplots[[n]] <- p1  # add each plot into plot list
+  
+}
+do.call(grid.arrange,  c(myplots,ncol=4))
+dev.off()
+
+
+# visualize combat method.
+pdf(width=10, height=10,'/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/figures/enigma_empirical_estimated_param_delta.pdf')
+
+ests <- outputn$estimates
+deltahats <- ests$delta.hat
+sites <- rownames(deltahats)
+
+clrs <- wes_palette("Zissou1", 28, type = "continuous")
+
+myplots <- list()  # new empty list
+for(n in 1:28){
+  x <-  seq(-3,4, length=70)
+  deltahat <- as.double(deltahats[n,])
+  y <-  dinvgamma(seq(-3, 4, length=70), shape=ests$a.prior[n],rate=ests$b.prior[n])
+  Sites <-sites[n]
+  
+  df<-data.frame(x,y, deltahat,Sites)
+  p1 <- ggplot(df, aes(x=x,color=Sites))+ theme_classic()+
+    geom_line(aes(x,y,color=Sites), data = NULL, linetype = "solid",size =0.7)+
+    scale_color_manual(values = clrs[n],labels = c('HCP_AGING', 'HCP_YA'))+
+    theme(legend.position="none")+
+    geom_density(aes(x=deltahat,color=Sites), data = NULL, linetype = "dotted",size =0.7)+
+    theme(text = element_text(size=8),plot.title = element_text(hjust = 0.5))+
+    ylab('Density')+xlab('Delta')+
+    ggtitle(sites[n])
+  
+  
+  myplots[[n]] <- p1  # add each plot into plot list
+  
+}
+do.call(grid.arrange,  c(myplots,ncol=4))
+dev.off()
+
+
+
+
+# format output
 outputthickness <-as.numeric(t(output))
 outputthickness <- matrix(outputthickness, ncol = 70, byrow = FALSE)
 
@@ -84,11 +150,12 @@ residualized_regionwise_data=matrix(, nrow = 724, ncol = 70)
 for (i in 1:70){
   residualized_regionwise_data[,i] <- residuals(lm(outputthickness[,i] ~ age + sex + tss))
 }
+clrs <- wes_palette("Zissou1", 28, type = "continuous")
 
 d2<-data.frame(residualized_regionwise_data, batchvar)
 pcavar <- prcomp(d2[1:70] , center = TRUE,scale. = TRUE)
 dev.on()
-pdf(width=20, height=6.4,'/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/PCA_3PCs_age_sex_tss_regressed_enigma_ComBat.pdf')
+pdf(width=20, height=6.4,'/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/figures/PCA_3PCs_age_sex_tss_regressed_enigma_ComBat.pdf')
 
 p1<- autoplot(pcavar, x=1, y=2, data = d2,size=3, colour = 'batchvar',alpha=0.5)+theme_classic()+scale_color_manual(values = c(col_vector))+theme(text = element_text(size=30)) + theme(legend.position="none",legend.title = element_blank())
 p2<- autoplot(pcavar, x=2, y=3, data = d2,size=3,colour = 'batchvar',alpha=0.5)+theme_classic()+scale_color_manual(values = c(col_vector))+theme(text = element_text(size=30))+ theme(legend.position="none",legend.title = element_blank())

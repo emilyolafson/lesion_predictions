@@ -55,7 +55,7 @@ for(i in 1:724){
 datatable <- data.frame(x,x2,y, site)
 names(wes_palettes)
 
-pdf(width=13, height=6.4,'/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/enigma_CT.pdf')
+pdf(width=13, height=6.4,'/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/figures/enigma_CT.pdf')
 
 ggplot(data = datatable,aes(x = x, y = cortical_thickness,color=site)) +theme_classic()+scale_color_manual("Sites", values= wes_palette("Zissou1", 28, type = "continuous"))+geom_boxplot(outlier.colour = NULL,outlier.alpha = 0.2,outlier.size=.1) +theme(axis.ticks.x = element_blank(), axis.text.x = element_blank(),text = element_text(size=20)) + xlab("Subjects grouped by site") + ylab("Cortical thickness")
 dev.off()
