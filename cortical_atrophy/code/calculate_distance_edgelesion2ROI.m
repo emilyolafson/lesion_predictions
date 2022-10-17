@@ -17,16 +17,16 @@ fsdir = dir('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrop
 nsubs = length(fsdir)-2;
 
 % initialize empty table stuff to store distances
-distance_table = array2table(zeros(nsubs, 114));
 
-distance_table=zeros(nsubs, 114);
+% dont pop up figures
+set(0,'DefaultFigureVisible','off')
+
 subject_table=[];
-
+lesion_neq1=[]
 for rowcount = 1:length(subjlist)-2 % ignore . and ..
     % get subject id
     subjname = subjlist(rowcount+2).name;
     subjname = subjname(1:12);
-    
     if ~isfile(sprintf('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/distance_roi_lesion/%s_distance_FS_closestpt.txt', subjname))
         sprintf('calculating distance from lesion to ROIs for subject %s\n', subjname)
         % load lesion (MNI152 v6)
@@ -34,9 +34,14 @@ for rowcount = 1:length(subjlist)-2 % ignore . and ..
         lesion = read_avw(lesionpath);
 
         % lesion must be in dimensions mxn where m is # of unique points and n is
-        % 3 (dimensions)
+        % n dimensions (rows of coordinates)
         [x,y,z]=ind2sub(size(lesion),find(lesion == 1));
         lesion_coords =[x, y, z];
+        if size(lesion_coords,1) == 0
+            lesion_neq1 = [lesion_neq1, subjname]
+            [x,y,z]=ind2sub(size(lesion),find(lesion > 0));
+            lesion_coords =[x, y, z];
+        end
 
         % load freesurfer parc (MNI152 v6)
         try
@@ -45,9 +50,13 @@ for rowcount = 1:length(subjlist)-2 % ignore . and ..
             fprintf('\n subject %s has no freesurfer file', subjname);
             continue;
         end
-
-        % calculate centroids of each ROI
+        
         uniqueROIs = unique(fs);
+        [~,~,index_b] = intersect(uniqueROIs,regionidx,'stable');
+        fs_names = regionnames(index_b);
+        
+        distance_table=zeros(nsubs, length(uniqueROIs));
+
         centroid=[];
         for roi = 1:length(uniqueROIs)
             binary_ROIvol = fs==uniqueROIs(roi);
@@ -59,6 +68,7 @@ for rowcount = 1:length(subjlist)-2 % ignore . and ..
 
         % calculate distance to closest point to lesion for each ROI
         %(P,PQ) 
+        dist=[]
         for roi=1:length(uniqueROIs)
             rounded_centroid = round(centroid(roi,:));
             [k,dist(roi)] = dsearchn(lesion_coords,rounded_centroid); %also returns the distance from each point in P to the corresponding query point in PQ.
@@ -72,8 +82,28 @@ for rowcount = 1:length(subjlist)-2 % ignore . and ..
     else
         sprintf('distance table for %s already exists!\n', subjname);
     end
+
 end
 
 
+%make figures of distances
 
+for rowcount = 1:length(subjlist)-2 % ignore . and ..
+    subjname = subjlist(rowcount+2).name;
+    subjname = subjname(1:12);
+    try
+    tbl = readtable(sprintf('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/distance_roi_lesion/%s_distance_FS_closestpt.txt', subjname));
+    
+    lh1 = tbl(:,[6:10, 14, 15, 17, 18]);
+    rh1 = tbl(:,[25:30, 31, 32, 33]);
+    lh2 = tbl(:, [46:79]);
+    rh2 = tbl(:, [81:114]);
+    
+    gummibrain(table2array([lh1, rh1, lh2, rh2]))
+    saveas(gcf, sprintf('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/distance_roi_lesion/%s_distance_gummi.png', subjname));
+    close all;
+    catch
+        disp('oops')
+    end
+end
 
