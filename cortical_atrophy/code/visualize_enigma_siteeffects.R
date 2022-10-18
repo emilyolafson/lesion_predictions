@@ -5,7 +5,7 @@ library(sva)
 library(RColorBrewer)
 library(wesanderson)
 
-thickness <- read.table('/Users/emilyolafson/GIT/ENIGMA/data/FREESURFER_ENIGMA/enigma_thickness_datasetvar.csv',sep = ",", header=TRUE)
+thickness <- read.table('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/enigma_thickness_datasetvar.csv',sep = ",", header=TRUE)
 og_colnames <- colnames(thickness)
 # setup combat
 Subject <- thickness$Subject
@@ -16,8 +16,9 @@ thickness$sex[thickness$sex =="3.0"]=NA
 thickness$sex[thickness$sex ==""]=NA
 sex <- as.factor(thickness$sex)
 tss <- thickness$time_since_stroke
+motor <- thickness$motor_score
 
-nas <- as.logical(rowSums(is.na(cbind(age, sex, tss))))
+nas <- as.logical(rowSums(is.na(cbind(age, sex, tss, motor))))
 thickness <- thickness[!nas,]
 
 
@@ -34,6 +35,12 @@ thickness <- thickness[, 3:72]
 thicknesst <-t(thickness)
 
 finaltable <- data.frame(cbind(subject, thickness,site,dataset,sex,age,motor))
+residualized_regionwise_data=matrix(, nrow = 710, ncol = 70)
+
+for (i in 1:70){
+  residualized_regionwise_data[,i] <- residuals(lm(unlist(thickness[i]) ~ age + sex + tss +motor))
+}
+
 
 ## boxplot age and ct
 theme = theme_set(theme_minimal())
@@ -44,14 +51,15 @@ x2<-NULL
 cortical_thickness<-NULL
 site<-NULL
 counter=0
-for(i in 1:724){
+for(i in 1:710){
   x=c(x, seq(counter+1, counter+70, 1))
   x2=c(x2, rep(as.character(i),70))
-  cortical_thickness=c(cortical_thickness, as.double(finaltable[i,2:71]))
+  cortical_thickness=c(cortical_thickness, as.double(residualized_regionwise_data[i,]))
   site = c(site, rep(finaltable[i,72],70))
   counter=counter+70
 }
 
+y <-cortical_thickness
 datatable <- data.frame(x,x2,y, site)
 names(wes_palettes)
 

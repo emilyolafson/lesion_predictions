@@ -6,13 +6,16 @@ library(ggplot2)
 library(sva)
 library(RColorBrewer)
 library(gridExtra)
-
+library(neuroCombat)
+library(cowplot)
+install.packages("invgamma")
+library(invgamma)
 n <- 30
 qual_col_pals = brewer.pal.info[brewer.pal.info$category == 'qual',]
 col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
 
 
-thickness <- read.table('/Users/emilyolafson/GIT/ENIGMA/data/FREESURFER_ENIGMA/enigma_thickness_datasetvar.csv',sep = ",", header=TRUE)
+thickness <- read.table('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/enigma_thickness_datasetvar.csv',sep = ",", header=TRUE)
 og_colnames <- colnames(thickness)
 # setup combat
 Subject <- thickness$Subject
@@ -23,8 +26,9 @@ thickness$sex[thickness$sex =="3.0"]=NA
 thickness$sex[thickness$sex ==""]=NA
 sex <- as.factor(thickness$sex)
 tss <- thickness$time_since_stroke
+motor_score <- thickness$motor_score
 
-nas <- as.logical(rowSums(is.na(cbind(age, sex, tss))))
+nas <- as.logical(rowSums(is.na(cbind(age, sex, tss, motor_score))))
 thickness <- thickness[!nas,]
 
 
@@ -42,10 +46,10 @@ thicknesst <-t(thickness)
 
 finaltable <- cbind(thickness,batchvar,dataset,sex,age,motor)
 
-residualized_regionwise_data=matrix(, nrow = 724, ncol = 70)
+residualized_regionwise_data=matrix(, nrow = 710, ncol = 70)
 
 for (i in 1:70){
-  residualized_regionwise_data[,i] <- residuals(lm(unlist(thickness[i]) ~ age + sex + tss ))
+  residualized_regionwise_data[,i] <- residuals(lm(unlist(thickness[i]) ~ age + sex + tss +motor ))
 }
 
 d2<-data.frame(residualized_regionwise_data, batchvar)
@@ -54,7 +58,7 @@ clrs <- wes_palette("Zissou1", 28, type = "continuous")
 # PCA
 pcavar <- prcomp(d2[1:70] , center = TRUE,scale. = TRUE)
 dev.on()
-pdf(width=20, height=6.4,'/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/figures/PCA_3PCs_age_sex_tss_regressed_enigma_raw.pdf')
+pdf(width=20, height=6.4,'/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/figures/PCA_3PCs_age_sex_tss_motor_regressed_enigma_raw.pdf')
 
 p1<- autoplot(pcavar, x=1, y=2, data = d2,size=3, colour = 'batchvar',alpha=0.5)+theme_classic()+scale_color_manual(values = c(col_vector))+theme(text = element_text(size=30)) + theme(legend.position="none", legend.title = element_blank())
 p2<- autoplot(pcavar, x=2, y=3, data = d2,size=3,colour = 'batchvar',alpha=0.5)+theme_classic()+scale_color_manual(values = c(col_vector))+theme(text = element_text(size=30))+ theme(legend.position="none",legend.title = element_blank())
@@ -65,7 +69,7 @@ dev.off()
 
 
 # COMBAT
-mod =cbind(sex,age,tss)
+mod =cbind(sex,age,tss,motor)
 
 outputn <- neuroCombat(dat=thicknesst,batch=batchvar,mod=mod)
 output <- outputn$dat.combat
@@ -118,7 +122,7 @@ myplots <- list()  # new empty list
 for(n in 1:28){
   x <-  seq(-3,4, length=70)
   deltahat <- as.double(deltahats[n,])
-  y <-  dinvgamma(seq(-3, 4, length=70), shape=ests$a.prior[n],rate=ests$b.prior[n])
+  y <-  dinvgamma(x=seq(-3, 4, length=70), shape=ests$a.prior[n],rate=ests$b.prior[n])
   Sites <-sites[n]
   
   df<-data.frame(x,y, deltahat,Sites)
@@ -133,8 +137,8 @@ for(n in 1:28){
   
   
   myplots[[n]] <- p1  # add each plot into plot list
-  
 }
+
 do.call(grid.arrange,  c(myplots,ncol=4))
 dev.off()
 
@@ -145,17 +149,17 @@ dev.off()
 outputthickness <-as.numeric(t(output))
 outputthickness <- matrix(outputthickness, ncol = 70, byrow = FALSE)
 
-residualized_regionwise_data=matrix(, nrow = 724, ncol = 70)
+residualized_regionwise_data=matrix(, nrow = 710, ncol = 70)
 
 for (i in 1:70){
-  residualized_regionwise_data[,i] <- residuals(lm(outputthickness[,i] ~ age + sex + tss))
+  residualized_regionwise_data[,i] <- residuals(lm(outputthickness[,i] ~ age + sex + tss +motor))
 }
 clrs <- wes_palette("Zissou1", 28, type = "continuous")
 
 d2<-data.frame(residualized_regionwise_data, batchvar)
 pcavar <- prcomp(d2[1:70] , center = TRUE,scale. = TRUE)
 dev.on()
-pdf(width=20, height=6.4,'/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/figures/PCA_3PCs_age_sex_tss_regressed_enigma_ComBat.pdf')
+pdf(width=20, height=6.4,'/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/figures/PCA_3PCs_age_sex_tss_motor_regressed_enigma_ComBat.pdf')
 
 p1<- autoplot(pcavar, x=1, y=2, data = d2,size=3, colour = 'batchvar',alpha=0.5)+theme_classic()+scale_color_manual(values = c(col_vector))+theme(text = element_text(size=30)) + theme(legend.position="none",legend.title = element_blank())
 p2<- autoplot(pcavar, x=2, y=3, data = d2,size=3,colour = 'batchvar',alpha=0.5)+theme_classic()+scale_color_manual(values = c(col_vector))+theme(text = element_text(size=30))+ theme(legend.position="none",legend.title = element_blank())
