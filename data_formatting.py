@@ -7,7 +7,9 @@ import pickle
 from helper_functions import *
 import glob
 import re
-
+#import label encoder
+from sklearn import preprocessing 
+from sklearn.model_selection import LeaveOneGroupOut
 
 LESIONMASK_PATH = os.path.join("/home/ubuntu/enigma/lesionmasks/")  # Set this path accordingly
 
@@ -78,7 +80,7 @@ def load_csv(csv_path):
     df = pd.read_csv(csv_path, header =0)
     return df
 
-def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None):
+def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None):
     """
     Formats ENIGMA data (ChaCo scores, demographic & clinical info) for classification or regression.
 
@@ -96,6 +98,8 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
         Enable prints for detailed logging information.
     :param y_var : str, default=None
         Label for variable set as "y". Default is 'normed_motor_scores', can be 'severity' for classification tasks.
+    :param remove_demog : int, default=None
+        If specified, remove subjs from final list that dont have demographic scores (sex, age, lesioned hem)
     :return: X, C, y, sites
     """
     
@@ -121,9 +125,34 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
     else:
         y_var = 'normed_motor_scores'
         
+    print('FULL DF SHAPE')
+    print(df.shape)
     # format data frame, remove missing data
     df = remove_missing_motor(df)
-
+    print('DF AFTER REMOVING MISSING MOTOR SCORES')
+    print(df.shape)
+    
+    # covariate extraction (age, sex, site, etc) 
+    
+    all_cov_labels = access_elements(df.columns.values,[3,4,5,6,9]) # Age, sex, days post stroke, chronicity, lesioned hem 
+ 
+    if covariates:
+        if isinstance(covariates, str):
+            covariates = [covariates]
+        if not isinstance(covariates, list):
+            raise RuntimeError('TypeError: covariates must be str or list, {} not accepted \n'.format(type(covariates)))
+        if not set(covariates).issubset(set(all_cov_labels)):
+            raise RuntimeError('Warning! Unknown covariates specified: {} \n'
+                               'Only the following options are allowed: {} \n'.format(covariates, all_cov_labels))
+        covariates_list = covariates
+    else:
+        covariates_list = []
+        
+    if remove_demog:
+        df = remove_missing_demographics(df,covariates_list)   
+    
+    print('DF SHAPE AFTER REMOVAL OF MISSING DEMOGRAPHICS:')
+    print(df.shape)
     ids=df['BIDS_ID']
     
     if subset_data == 'chronic':
@@ -140,32 +169,30 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
     else:
         ids = df['BIDS_ID']
         df_final = df
-        
+    
+    print('DF SHAPE AFTER REMOVAL OF ACUTE:')
+    print(df_final.shape)
+          
     # find subjects who have motor scores but are missing scans.
     ids_fullpaths_nonemissing, missinglist = find_missing_scans(ids, parc, chacovar)
     df_final = remove_missing_scans(df_final,missinglist)  
+
+    print('DF SHAPE AFTER REMOVAL OF MISSING SCANS:')
+    print(df_final.shape)
+    
     print('Loading data for atlas: {}, ChaCo scores: {}, subset: {}'.format(atlas, chacovar,subset_data))
     # load X data
     X = load_chaco_data(ids_fullpaths_nonemissing, chacovar)
-    X = prepare_data(np.array(X))
+    X = np.array(X)
     
-        # covariate extraction (age, sex, site, etc) 
-    all_cov_labels = access_elements(df_final.columns.values,[3,4,6,9]) # Age, sex, chronicity, lesioned hem 
-    if covariates:
-        if isinstance(covariates, str):
-            covariates = [covariates]
-        if not isinstance(covariates, list):
-            raise RuntimeError('TypeError: covariates must be str or list, {} not accepted \n'.format(type(covariates)))
-        if not set(covariates).issubset(set(all_cov_labels)):
-            raise RuntimeError('Warning! Unknown covariates specified: {} \n'
-                               'Only the following options are allowed: {} \n'.format(covariates, all_cov_labels))
-        covariates_list = covariates
-    else:
-        covariates_list = 0    
-    if verbose:
+    if verbose and isinstance(covariates, str):
         print('Extracting {} from atlas {} \n'.format(str(covariates_list), atlas))
+        
     C = df_final.loc[:,covariates_list].values
     site = df_final["SITE"]
+    #make an instance of Label Encoder
+    label_encoder = preprocessing.LabelEncoder()
+    site = label_encoder.fit_transform(site)        
 
     # load y data
     if y_var == 'normed_motor_scores':
@@ -173,9 +200,55 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
        # y = np.reshape(y, (len(y),1))
         
     elif y_var =='severity':
-        y = df_final['NORMED_MOTOR'].values > 0.5
-        y = np.reshape(y, (len(y),1))
-
+        y = df_final['NORMED_MOTOR'].values < 0.424
+        y = y.astype(int)
     
     print('Final size of data: \n X_data: {} by {} \n Y_data: length {} '.format(X.shape[0], X.shape[1], y.shape[0]))
     return X, y, C, site
+
+def remove_missing_demographics(df,covariates):
+    missing_ids = np.zeros(df.shape[0])
+    
+    for cov in covariates:
+        print(cov)
+        missing_ids = np.isnan(df[cov]) + missing_ids
+        
+    missing_ids = missing_ids>0
+    return df[~missing_ids]
+
+
+
+def calculate_demographics_dataset(X, Y, C, site):
+    outer_cv = LeaveOneGroupOut()
+    outer_cv_splits = outer_cv.get_n_splits(X, Y, site)
+
+    site_size = np.zeros((outer_cv_splits,1), dtype=object)
+    size_mean_NMS = np.zeros((outer_cv_splits,1), dtype=object)
+    size_std_NMS = np.zeros((outer_cv_splits,1), dtype=object)
+    missing_age = np.zeros((outer_cv_splits,1), dtype=object)
+    missing_sex = np.zeros((outer_cv_splits,1), dtype=object)
+    missing_lesionedhem = np.zeros((outer_cv_splits,1), dtype=object)
+    site_mean_pctF = np.zeros((outer_cv_splits,1), dtype=object)
+    site_mean_age = np.zeros((outer_cv_splits,1), dtype=object)
+
+    cv_idx=0
+    for train_index, test_index in outer_cv.split(X, Y, site):
+        y_train, y_test = Y[train_index], Y[test_index]
+        site_train, site_test = site[train_index], site[test_index]
+        C_train, C_test = C[train_index], C[test_index]
+
+        site_size[cv_idx]= site_test.shape[0]
+        size_mean_NMS[cv_idx] = np.mean(y_test)
+        size_std_NMS[cv_idx] = np.std(y_test)
+        
+        missing_age[cv_idx]=np.sum(np.isnan(C_test[:,1]))
+        missing_sex[cv_idx]=np.sum(np.isnan(C_test[:,0]))
+        missing_lesionedhem[cv_idx]=np.sum(np.isnan(C_test[:,2]))
+        site_mean_pctF[cv_idx]=np.sum(C_test[:,0]==2)/C_test.shape[0]
+        site_mean_age[cv_idx]=np.mean(C_test[:,1])
+
+        
+
+        cv_idx+=1
+    size_motorscores = np.concatenate((site_size,size_mean_NMS,size_std_NMS,missing_age,missing_sex,missing_lesionedhem,site_mean_pctF,site_mean_age), axis=1)
+    return size_motorscores

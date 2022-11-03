@@ -2,8 +2,8 @@
 
 
 clear options
-atlases = {'shen268'};
-chaco_types = {'chacoconn'};
+atlases = {'fs86subj'};
+chaco_types = {'chacovol'};
 crossval_schemes = [1];
 
 for atlas = 1:length(atlases)
@@ -32,6 +32,21 @@ for atlas = 1:length(atlases)
         end
     end
 end
+
+%% Plot which regions are used in each analysis
+one_cval = activations(1:5,:)
+mean_one_cval = mean(one_cval(used_in_all))
+logicalz = logical(one_cval)
+
+sumlogicals = sum(logicalz)
+
+used_in_all = sumlogicals == 5
+mean_one_cval = mean(one_cval.*used_in_all)
+gummibrain(mean_one_cval)
+
+activ_logical = logical(activations)
+sum(activ_logical)
+
 cv1 = activations
 cv5 = activations
 

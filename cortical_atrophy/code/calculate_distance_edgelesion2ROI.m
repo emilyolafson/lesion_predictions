@@ -7,22 +7,14 @@ subjlist = dir('/Users/emilyolafson/GIT/ENIGMA/data/lesionmasks/all_lesionmasks_
 lut = readtable('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/aseg+aparc_LUT.txt');
 regionnames = lut.Var2;
 regionidx = lut.Var1;
-fs_eg = read_avw('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/voxelwise_aseg_aparc/sub-r009s055_aseg_aparc_ro_toMNI.nii.gz');
-uniqueidx = unique(fs_eg);
-[~,~,index_b] = intersect(uniqueidx,regionidx,'stable');
-fs_names = regionnames(index_b);
 
 % n subs w fs parc
 fsdir = dir('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/voxelwise_aseg_aparc/*_aseg_aparc_ro_toMNI.nii.gz');
 nsubs = length(fsdir)-2;
 
-% initialize empty table stuff to store distances
-
 % dont pop up figures
 set(0,'DefaultFigureVisible','off')
 
-subject_table=[];
-lesion_neq1=[]
 for rowcount = 1:length(subjlist)-2 % ignore . and ..
     % get subject id
     subjname = subjlist(rowcount+2).name;
@@ -32,16 +24,12 @@ for rowcount = 1:length(subjlist)-2 % ignore . and ..
         % load lesion (MNI152 v6)
         lesionpath = strcat(subjlist(rowcount+2).folder,'/',subjlist(rowcount+2).name);
         lesion = read_avw(lesionpath);
+        lesion = logical(lesion);
 
         % lesion must be in dimensions mxn where m is # of unique points and n is
         % n dimensions (rows of coordinates)
         [x,y,z]=ind2sub(size(lesion),find(lesion == 1));
         lesion_coords =[x, y, z];
-        if size(lesion_coords,1) == 0
-            lesion_neq1 = [lesion_neq1, subjname]
-            [x,y,z]=ind2sub(size(lesion),find(lesion > 0));
-            lesion_coords =[x, y, z];
-        end
 
         % load freesurfer parc (MNI152 v6)
         try
@@ -60,14 +48,11 @@ for rowcount = 1:length(subjlist)-2 % ignore . and ..
         centroid=[];
         for roi = 1:length(uniqueROIs)
             binary_ROIvol = fs==uniqueROIs(roi);
-            fs_id = fs_names(roi);
             [RL, PA, IS] = ndgrid(1:size(binary_ROIvol, 1), 1:size(binary_ROIvol, 2),1:size(binary_ROIvol, 3));
             centroid(roi,:) = mean([RL(logical(binary_ROIvol)), PA(logical(binary_ROIvol)), IS(logical(binary_ROIvol))]);
-            %save_avw(binary_ROIvol, sprintf('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/asegaparc_%i.nii.gz', uniqueROIs(roi)), 'f', [1 1 1])
         end
 
         % calculate distance to closest point to lesion for each ROI
-        %(P,PQ) 
         dist=[]
         for roi=1:length(uniqueROIs)
             rounded_centroid = round(centroid(roi,:));
@@ -82,7 +67,6 @@ for rowcount = 1:length(subjlist)-2 % ignore . and ..
     else
         sprintf('distance table for %s already exists!\n', subjname);
     end
-
 end
 
 
@@ -92,18 +76,38 @@ for rowcount = 1:length(subjlist)-2 % ignore . and ..
     subjname = subjlist(rowcount+2).name;
     subjname = subjname(1:12);
     try
-    tbl = readtable(sprintf('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/distance_roi_lesion/%s_distance_FS_closestpt.txt', subjname));
-    
-    lh1 = tbl(:,[6:10, 14, 15, 17, 18]);
-    rh1 = tbl(:,[25:30, 31, 32, 33]);
-    lh2 = tbl(:, [46:79]);
-    rh2 = tbl(:, [81:114]);
-    
-    gummibrain(table2array([lh1, rh1, lh2, rh2]))
-    saveas(gcf, sprintf('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/distance_roi_lesion/%s_distance_gummi.png', subjname));
-    close all;
-    catch
+        tbl = readtable(sprintf('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/distance_roi_lesion/%s_distance_FS_closestpt.txt', subjname));
+
+        lh1 = tbl(:,[6:10, 14, 15, 17, 18]);
+        rh1 = tbl(:,[25:30, 31, 32, 33]);
+        lh2 = tbl(:, [46:79]);
+        rh2 = tbl(:, [81:114]);
+
+        gummibrain(table2array([lh1, rh1, lh2, rh2]))
+        saveas(gcf, sprintf('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/distance_roi_lesion/%s_distance_gummi.png', subjname));
+        close all;
+        catch
         disp('oops')
     end
 end
+
+
+make figures of ct?
+tbl = readtable('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/enigma_combat_thickness_zscore_NANs.csv');
+subs=tbl.Subject;
+
+for rowcount = 1:length(subs)
+    subjname = subs{rowcount};
+
+    values(1:18)=NaN;
+    zscores = tbl(rowcount, 3:end);
+    values(19:86)=table2array(zscores);
+
+    gummibrain(values')
+    saveas(gcf, sprintf('/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/cortical_atrophy/data/FREESURFER_ENIGMA/distance_roi_lesion/%s_zCT_gummi.png', subjname));
+    close all;
+
+    disp('oops')
+end
+
 

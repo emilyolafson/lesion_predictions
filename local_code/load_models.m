@@ -45,10 +45,8 @@ function [r2scores, correl, nullr2scores, nullcorrel,alphas, feats, allactivatio
 
         alphas(perm_number,:) = readtable(alpha).Var1;
         feats(perm_number,:) = readtable(feat).Var1;
-        perm_number=2
         activations = load(sprintf('%s%i_activation_weights.mat',  filename_base,perm_number-1));
         activations=activations.varimpts;
-        size(activations)
         allactivations = [allactivations;activations];
     end
     

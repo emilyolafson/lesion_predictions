@@ -1,3 +1,4 @@
+from stat import FILE_ATTRIBUTE_SPARSE_FILE
 import sys; sys.path
 import pandas as pd
 import numpy as np 
@@ -5,25 +6,28 @@ import seaborn as sns
 import scipy.io as sio
 from scipy.stats import pearsonr
 import os
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score, KFold, StratifiedKFold
+from sklearn.model_selection import GridSearchCV, KFold, StratifiedKFold
 from sklearn import preprocessing, linear_model
-from sklearn.metrics import explained_variance_score, r2_score, make_scorer
+from sklearn.metrics import explained_variance_score,accuracy_score, recall_score,roc_auc_score
 from sklearn.preprocessing import StandardScaler
 from joblib import parallel_backend, Parallel, delayed
 import matplotlib
 from sklearn.pipeline import Pipeline
-from sklearn.linear_model import Lasso, Ridge, ElasticNet
+from sklearn.linear_model import Lasso, Ridge, ElasticNet,LinearRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.decomposition import PCA
-from sklearn.feature_selection import SelectKBest,f_regression
+from sklearn.feature_selection import SelectKBest,f_regression,f_classif,mutual_info_classif
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import figure
 import warnings
 import math
-from functools import partial
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder 
+from sklearn.ensemble import RandomForestClassifier
 
-warnings.filterwarnings("ignore", message="RuntimeWarning: invalid value encountered in true_divide corr /= X_norms")
+from functools import partial
+import warnings
+warnings.filterwarnings('ignore') 
 
 
 def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
@@ -297,60 +301,6 @@ def gcv_ridge(hyperparam, x, y, k, featsel='None', a=10):
     return expl_var
 
 
-def parallel_featsearch(alpha, X, Y, k, featselect, feat):
-    ''' Grid search in parallel.
-
-    Returns:
-        expl_var - explained variance for given combination of alpha/feat/featselect'''
-    
-    expl_var=gcv_ridge(alpha, X, Y, k, featselect, feat)
-    return expl_var
-
-# Inner loop - grid search
-def gridsearch_cv(k, x, y, featselect, alphas, feats):
-    ''' Performs grid search using fixed predefined hyperparameter ranges and returns the best alpha and # of features for 
-        a given training/validation sample. 
-        
-        Input:
-            x = N x p input matrix
-            y = 1 x p variable to predict
-            k = k value in k-fold cross validation 
-            featsel = type string, feature selection method, default="None"
-                'None' - no feature selection; use all variables for prediction
-                'correlation'- calculate the abs. val. Pearson correlation between all training variables with the varibale to predict. Use the highest 'a' variables based on their correlation for prediction
-                'PCA' - perform PCA on the training variables and use the top 'a' PCs as input variables, by variance explained, for prediction
-            alphas - range of alpha parameters to search 
-            feats - range of # features to search
-        
-        Returns:
-            bestalpha - optimal alpha based on grid search
-            bestfeats - optimal number of features based on grid search
-            bestr2 - mean R^2 across folds obtained for the optimal combination of hyperparameters
-            gcv_values - R^2 across all combinations of hyperparametrs.'''
-    
-    print(str(k)+"-fold cross-validation results in "+str((x.shape[0]/k)*(k-1))+ " subjects in the training set, and "+ str(x.shape[0]/k) + " subjects in the validation set")
-
-    # initialize array to store r2
-    gcv_values=np.empty(shape=(len(alphas),len(feats)),dtype='float')
-
-    # iterate through alphas
-    for alpha in alphas:
-        row, = np.where(alphas==alpha)
-        
-        # run feature selection (# of components) in parallel
-        gcv=Parallel(n_jobs=-1,verbose=0)(delayed(parallel_featsearch)(alpha,x, y, k, featselect, feat) for feat in feats)
-        gcv=np.array(gcv)
-        gcv_values[row]=gcv
-            
-        row=np.argmax(np.max(gcv_values, axis=1))
-        col=np.argmax(np.max(gcv_values, axis=0))
-
-    bestalpha=alphas[row]
-    bestfeats=feats[col]
-    bestr2=np.max(gcv_values)
-
-    return bestalpha, bestfeats, bestr2, gcv_values
-
 def plot_figure(gcv_values, string, midpoint):
     '''Plots the R^2 value obtained across all grid-search pairs (# features and regularization values.)
     
@@ -392,12 +342,11 @@ def plot_figure(gcv_values, string, midpoint):
     plt.scatter(row,col,color='k')
     plt.savefig(results_dir+string+ '.png')
     plt.show()
-     
-     
+      
 def determine_featselect_range(X):
     X_max_dim = X.shape[1]
     X_min_dim = 5
-    n=30
+    n = 30
     base = 2
     k_range=np.logspace(math.log(X_min_dim,base),math.log(X_max_dim,base), n,base=base, dtype=int)
     return k_range
@@ -414,31 +363,46 @@ def get_models(model_type='regression', model_list=None):
         if 'lasso' in model_list:
             lasso =  Pipeline([('featselect', SelectKBest(f_regression)),('lasso', Lasso(normalize=True, max_iter=1000000, random_state=0))])
             mdls.append(lasso)
+        if 'ensemble_reg' in model_list:
+            ensemble_reg = Pipeline([('ensemble_reg', LinearRegression())])
+            mdls.append(ensemble_reg)
         mdls_labels = model_list
         
         return mdls, mdls_labels
         
     elif model_type == 'classification': 
-        svm = Pipeline([('svm', SVC(probability=True, class_weight='balanced', kernel='linear', random_state=0))])
-        rbf_svm = Pipeline([('svm', SVC(probability=True, class_weight='balanced', kernel='rbf', random_state=0))])
-        log = Pipeline([('logistic', LogisticRegression(class_weight='balanced', solver='liblinear', random_state=0))])
-        pca_log = Pipeline([('pca', PCA(n_components=0.9)),
-                            ('logistic', LogisticRegression(class_weight='balanced', solver='liblinear', random_state=0))])
-
-        mdls = [svm, rbf_svm, log, pca_log]
-        mdls_labels = ['svm', 'rbf_svm', 'log', 'pca_log']
-        
+        print('Selecting classification models')
+        if 'svm' in model_list:
+            svm = Pipeline([ ('svm', SVC(probability=True, class_weight='balanced', kernel='linear', random_state=0))])
+            mdls.append(svm)
+        if 'rbf_svm' in model_list:
+            rbf_svm = Pipeline([('svm', SVC(probability=True, class_weight='balanced', kernel='rbf', random_state=0))])
+            mdls.append(rbf_svm)  
+        if 'log' in model_list:
+            log = Pipeline([('logistic', LogisticRegression(class_weight='balanced', solver='liblinear', random_state=0))])
+            mdls.append(log)
+        if 'xgboost' in model_list:
+            xgboost = Pipeline([('xgboost', XGBClassifier(eval_metric='auc', nthread=1, random_state=0))])
+            mdls.append(xgboost)
+        if 'rf' in model_list:
+            rf = Pipeline([('rf', RandomForestClassifier())])
+            mdls.append(rf)
+        mdls_labels = model_list 
     return mdls, mdls_labels
 
-def inner_loop(mdl, mdl_label, X, Y, cv, n_jobs):
+def inner_loop(mdl, mdl_label, X, Y, group, inner_cv, n_jobs):
     
     k_range = determine_featselect_range(X)
     
     if mdl_label=='ridge':
+        print('test')
         grid_params ={'ridge__alpha': np.logspace(-2, 2, 30, base=10,dtype=None),
                       'featselect__k':k_range}
         score = 'explained_variance'
         
+    elif mdl_label=='ensemble_reg':
+        score = 'explained_variance'
+            
     elif mdl_label=='elastic_net':
         grid_params ={'elastic_net__alpha': np.logspace(-2, 2, 30, base=10,dtype=None),
                       'featselect__k':k_range}
@@ -449,27 +413,437 @@ def inner_loop(mdl, mdl_label, X, Y, cv, n_jobs):
                       'featselect__k':k_range}
         score = 'explained_variance'
         
-    elif mdl_label == 'rfc':
-        grid_params = {'rfc__n_estimators': np.linspace(10, 200, 5, dtype=int),  # Should be as HIGH as possible
-                       'rfc__max_features': ['sqrt', 'log2', 0.25, 0.5, 0.75]}
-    elif 'svm' in mdl_label:
+    elif mdl_label == 'svm':
         grid_params = {'svm__C': [0.0001, 0.001, 0.01, 0.1, 1]}
-        if 'rbf' in mdl_label:
-            grid_params = {'svm__C': [0.0001, 0.001, 0.01, 0.1, 1],
-                           'svm__gamma': [0.001, 0.01, 0.1, 1]}
-    elif 'log' in mdl_label:
+        score = 'roc_auc'
+    elif mdl_label== 'rbf_svm':
+        grid_params = {'svm__C': [0.0001, 0.001, 0.01, 0.1, 1],
+                        'svm__gamma': [0.001, 0.01, 0.1, 1]}
+        score = 'roc_auc'
+    elif mdl_label=='log':
         grid_params = {'logistic__C': [0.0001, 0.001, 0.01, 0.1, 1, 10],
                        'logistic__penalty': ['l1', 'l2']}
+        score = 'roc_auc'
+    elif mdl_label=='xgboost':
+        grid_params = {'xgboost__gamma': [0.5, 1, 1.5, 2, 5],
+                       'xgboost__learning_rate': [0.01, 0.1, 0.3],
+                       'xgboost__max_depth': [3, 4, 5]}
+    elif mdl_label=='rf':
+        grid_params = {'rf__n_estimators': [5, 10, 15, 20],
+                 'rf__max_depth': [2, 5, 7, 9]}
+        score = 'roc_auc'
     else:
         print('Model not found..')
-        return mdl, None
-    
-    grid_search = GridSearchCV(estimator=mdl, param_grid=grid_params, scoring=score, cv=cv, refit=True, verbose=0,
-                               n_jobs=n_jobs, return_train_score=False, pre_dispatch='2*n_jobs')
-    
-    
-    grid_search.fit(X, Y)
+        return mdl
+        
+    if mdl_label == 'ensemble_reg':
+        return mdl
+    else:
+        grid_search = GridSearchCV(estimator=mdl, param_grid=grid_params, scoring=score, cv=inner_cv, refit=True, verbose=1,
+                                n_jobs=n_jobs, return_train_score=False, pre_dispatch='2*n_jobs')
 
+    grid_search.fit(X, Y, group)
     best_mdl = grid_search.best_estimator_
     return best_mdl
+
+def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, X):
+    cov_y=np.cov(np.transpose(y_train))
+    x_sub = X_train[:,cols]
+    print('cols:')
+    print(cols)
+    print(x_sub)
+    cov_x=np.cov(np.transpose(x_sub))
+    activationweight = mdl.named_steps[mdl_label].coef_
+    weight=np.transpose(activationweight)
+    
+    activation=np.matmul(cov_x,weight)*(1/cov_y)
+    print('activations:')
+    print(activation)
+    if chaco_type =='chacovol':
+        if atlas == 'fs86subj':
+            
+            idx=np.ones(shape=(86,1), dtype='bool')
+            idx[cols]=False # set SC weights that are features to be 1
+            idx=idx.flatten()
+            zeroidx=np.arange(0, 86, dtype='int')
+            zeroidx=zeroidx[idx]
+            
+            # fill spots with 0's (up to 3192)
+            k=0
+            activation_full = activation
+            while k < zeroidx.shape[0]:
+                activation_full=np.insert(activation_full, zeroidx[k],0)
+                k=k+1
+            
+            #print("Full 3192: " + str(np.sum(activation_full>0)))
+            # fill spots with 0's (up to 3655)
+            zeros=X==0
+            zeros=np.sum(zeros,0) # number of zeros across subjects
+            zeros=zeros==X.shape[0] # find columns with zeros for all 101 subjects
+            X=X[:,~zeros]
+            
+            zeroidx=np.arange(0, 86)
+            zeroidx=zeroidx[zeros]
+            
+            # fill spots with 0's
+            k=0
+            a = activation_full
+            while k < zeroidx.shape[0]:
+                a=np.insert(a, zeroidx[k],0)
+                k=k+1
+            
+            activation = a
+        if atlas == 'shen268':
+            
+            idx=np.ones(shape=(268,1), dtype='bool')
+            idx[cols]=False # set SC weights that are features to be 1
+            idx=idx.flatten()
+            zeroidx=np.arange(0, 268, dtype='int')
+            zeroidx=zeroidx[idx]
+            
+            # fill spots with 0's (up to 3192)
+            k=0
+            activation_full = activation
+            while k < zeroidx.shape[0]:
+                activation_full=np.insert(activation_full, zeroidx[k],0)
+                k=k+1
+            
+            #print("Full 3192: " + str(np.sum(activation_full>0)))
+            # fill spots with 0's (up to 3655)
+            zeros=X==0
+            zeros=np.sum(zeros,0) # number of zeros across subjects
+            zeros=zeros==X.shape[0] # find columns with zeros for all 101 subjects
+            X=X[:,~zeros]
+            
+            zeroidx=np.arange(0, 268)
+            zeroidx=zeroidx[zeros]
+            
+            # fill spots with 0's
+            k=0
+            a = activation_full
+            while k < zeroidx.shape[0]:
+                a=np.insert(a, zeroidx[k],0)
+                k=k+1
+            
+            activation = a
+    if chaco_type=='chacoconn':
+        if atlas == 'fs86subj':
+                  
+            idx=np.ones(shape=(3192,1), dtype='bool')
+            idx[cols]=False # set SC weights that are features to be 1
+            idx=idx.flatten()
+            zeroidx=np.arange(0, 3192, dtype='int')
+            zeroidx=zeroidx[idx]
+            
+            # fill spots with 0's (up to 3192)
+            k=0
+            activation_full = activation
+            while k < zeroidx.shape[0]:
+                activation_full=np.insert(activation_full, zeroidx[k],0)
+                k=k+1
+            
+            #print("Full 3192: " + str(np.sum(activation_full>0)))
+            # fill spots with 0's (up to 3655)
+            zeros=X==0
+            zeros=np.sum(zeros,0) # number of zeros across subjects
+            zeros=zeros==X.shape[0] # find columns with zeros for all 101 subjects
+            X=X[:,~zeros]
+            
+            zeroidx=np.arange(0, 3655)
+            zeroidx=zeroidx[zeros]
+            
+            # fill spots with 0's
+            k=0
+            a = activation_full
+            while k < zeroidx.shape[0]:
+                a=np.insert(a, zeroidx[k],0)
+                k=k+1
+            
+            activation = a
+            fs86_counts = np.zeros((86, 86))
+            inds = np.triu_indices(86, k=1)
+            fs86_counts[inds] = activation
+            activation = fs86_counts
+        if atlas == 'shen268':
+            idx=np.ones(shape=(25056,1), dtype='bool')
+            idx[cols]=False # set SC weights that are features to be 1
+            idx=idx.flatten()
+            zeroidx=np.arange(0, 25056, dtype='int')
+            zeroidx=zeroidx[idx]
+            
+            # fill spots with 0's (up to 3192)
+            k=0
+            activation_full = activation
+            while k < zeroidx.shape[0]:
+                activation_full=np.insert(activation_full, zeroidx[k],0)
+                k=k+1
+            
+            #print("Full 3192: " + str(np.sum(activation_full>0)))
+            # fill spots with 0's (up to 3655)
+            zeros=X==0
+            zeros=np.sum(zeros,0) # number of zeros across subjects
+            zeros=zeros==X.shape[0] # find columns with zeros for all 101 subjects
+            X=X[:,~zeros]
+            
+            zeroidx=np.arange(0, 35778)
+            zeroidx=zeroidx[zeros]
+            
+            # fill spots with 0's
+            k=0
+            a = activation_full
+            while k < zeroidx.shape[0]:
+                a=np.insert(a, zeroidx[k],0)
+                k=k+1
+            
+            activation = a
+            shen268_counts = np.zeros((268, 268))
+            inds = np.triu_indices(268, k=1)
+            shen268_counts[inds] = activation
+            activation = shen268_counts
+    return activation
+    
+def run_regression(x, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null):
+    X = prepare_data(x) 
+    print(X.shape)
+    outer_cv_splits = outer_cv.get_n_splits(X, Y, group)
+ 
+    models = np.zeros((len(models_tested), outer_cv_splits), dtype=object)
+    explained_var  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+    variable_importance  = []
+    correlations  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+    size_testgroup =[]
+
+    for n in range(1,nperms):
+        print('PERMUTATION: {}'.format(n))
+        activation_weights=[]
+        for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X, Y, group)):
+
+            print("Fold: {}".format(cv_fold + 1))
+            
+            X_train, X_test = X[train_id], X[test_id]
+            y_train, y_test = Y[train_id], Y[test_id]
+            group_train, group_test = group[train_id], group[test_id]
+            
+            print('Size of test group: {}'.format(group_test.shape[0]))
+            print('Size of train group: {}'.format(group_train.shape[0]))
+
+            mdls, mdls_labels = get_models('regression', models_tested)
+            size_testgroup.append(group_test.shape[0])
+            mdl_idx=0
+            for mdl, mdl_label in zip(mdls, mdls_labels): 
+                filename = results_path + '/{}_{}_{}_{}_{}_crossval{}_{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
+        
+                if null>0:
+                    print('NULL!')
+                    filename = filename + '_null_' + str(null)
+                    
+                print('-------------- saving file as: {} -------------'.format(filename))
+                
+                print('Performing grid search for: {} \n'.format(mdl_label))
+                mdl = inner_loop(mdl, mdl_label, X_train, y_train, group_train, inner_cv, 10)  
+                
+                mdl.fit(X_train, y_train)
+                cols = mdl['featselect'].get_support(indices=True)
+
+                ## HAUFE TRANSFORMS:
+                activation = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
+                y_pred= mdl.predict(X_test)
+                
+                expl=explained_variance_score(y_test, y_pred)
+
+                variable_importance.append(mdl.named_steps[mdl_label].coef_)
+                correlations[mdl_idx, cv_fold] = np_pearson_cor(y_test,y_pred)[0]
+                activation_weights.append(activation)
+                print('Explained variance: {} \n'.format(explained_variance_score(y_test, y_pred)))
+                print('Correlation: {} \n'.format(np_pearson_cor(y_test,y_pred)))
+
+                explained_var[mdl_idx, cv_fold]=expl
+                if save_models:
+                    models[mdl_idx, cv_fold] = mdl
+                    
+                mdl_idx += 1
+
+        print("Saving data...")
+        print(len(activation_weights))
+        print(activation_weights[0].shape)
+        np.save(os.path.join(results_path, filename + "_scores.npy"), explained_var)
+        np.save(os.path.join(results_path, filename + "_model.npy"), models)
+        np.save(os.path.join(results_path, filename + "_correlations.npy"), correlations)
+        np.save(os.path.join(results_path, filename + "_activation_weights.npy"), activation_weights)
+
+        np.save(os.path.join(results_path, filename + "_model_labels.npy"), mdls_labels)
+        np.save(os.path.join(results_path, filename + "_variable_impts.npy"), variable_importance)
+        np.save(os.path.join(results_path, filename + "_test_group_sizes.npy"), size_testgroup)
+
+def run_classification(X, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null):
+    
+    outer_cv_splits = outer_cv.get_n_splits(X, Y, group)
+ 
+    models = np.zeros((len(models_tested), outer_cv_splits), dtype=object)
+    balanced_accuracies  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+    variable_importance  = []
+    size_testgroup =[]
+
+    for n in range(0,nperms):
+        
+        print('PERMUTATION: {}'.format(n))
+        
+        for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X, Y, group)):
+
+            print("Fold: {}".format(cv_fold + 1))
+            
+            X_train, X_test = X[train_id], X[test_id]
+            y_train, y_test = Y[train_id], Y[test_id]
+            group_train, group_test = group[train_id], group[test_id]
+            
+            print('Size of test group: {}'.format(group_test.shape[0]))
+            print('Size of train group: {}'.format(group_train.shape[0]))
+
+            mdls, mdls_labels = get_models('classification', models_tested)
+            size_testgroup.append(group_test.shape[0])
+            mdl_idx=0
+            for mdl, mdl_label in zip(mdls, mdls_labels): 
+                filename = results_path + '/{}_{}_{}_{}_{}_crossval{}_{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
+        
+                if null>0:
+                    print('NULL!')
+                    filename = filename + '_null_' + str(null)
+                    
+                print('-------------- saving file as: {} -------------'.format(filename))
+                
+                print('Performing grid search for: {} \n'.format(mdl_label))
+                mdl = inner_loop(mdl, mdl_label, X_train, y_train, group_train, inner_cv, 10)  
+                mdl.fit(X_train, y_train)
+                y_pred= mdl.predict(X_test)
+                
+                y_score = mdl.predict_proba(X_test)[:, 1]
+                accuracies =  accuracy_score(y_test, y_pred)
+                print(accuracies)
+                
+                bacc=balanced_accuracy(y_test,y_pred)
+                ppvscore = ppv(y_test,y_pred)
+                npvscore = npv(y_test,y_pred)
+                auc = roc_auc_score(y_test,y_pred)
+                #variable_importance.append(mdl.named_steps[mdl_label].coef_)
+                #correlations[mdl_idx, cv_fold] = np_pearson_cor(y_test,y_pred)[0]
+                
+                print('Accuracy: {} \n'.format(accuracies))
+                print('Balanced accuracy: {} \n'.format(bacc))
+                print('PPV: {}'.format(ppvscore))
+                print('NPV: {}'.format(npvscore))
+                print('AUC: {}'.format(auc))
+
+                #print('Correlation: {} \n'.format(np_pearson_cor(y_test,y_pred)))
+
+                balanced_accuracies[mdl_idx, cv_fold]=bacc
+                
+                if save_models:
+                    models[mdl_idx, cv_fold] = mdl
+                    
+                mdl_idx += 1
+
+        print("Saving data...")
+        #np.save(os.path.join(results_path, filename + "_scores.npy"), balanced_accuracies)
+        np.save(os.path.join(results_path, filename + "_model.npy"), models)
+       # np.save(os.path.join(results_path, filename + "_correlations.npy"), correlations)
+
+        np.save(os.path.join(results_path, filename + "_model_labels.npy"), mdls_labels)
+       # np.save(os.path.join(results_path, filename + "_variable_impts.npy"), variable_importance)
+        np.save(os.path.join(results_path, filename + "_test_group_sizes.npy"), size_testgroup)
+        
+def run_regression_ensemble(X1, X2, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null):
+    
+    outer_cv_splits = outer_cv.get_n_splits(X1, Y, group)
+    
+    models = np.zeros((len(models_tested), outer_cv_splits), dtype=object)
+    explained_var  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+    variable_importance  = []
+    correlations_ensemble  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+    correlations_chaco  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+    correlations_demog  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+
+    size_testgroup =[]
+    
+
+    for n in range(0,nperms):
+        
+        print('PERMUTATION: {}'.format(n))
+        
+        for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X1, Y, group)):
+
+            print("Fold: {}".format(cv_fold + 1))
+            
+            X1_train, X1_test = X1[train_id], X1[test_id]
+            X2_train, X2_test = X2[train_id], X2[test_id]
+
+            y_train, y_test = Y[train_id], Y[test_id]
+            group_train, group_test = group[train_id], group[test_id]
+            
+            print('Size of test group: {}'.format(group_test.shape[0]))
+            
+            mdls, mdls_labels = get_models('regression', ['ridge'])
+            size_testgroup.append(group_test.shape[0])
+            mdl_idx=0
+            
+            for mdl, mdl_label in zip(mdls, mdls_labels): 
+                filename = results_path + '/{}_{}_{}_{}_{}_crossval{}_{}_ensemble'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
+        
+                if null>0:
+                    print('NULL!')
+                    filename = filename + '_null_' + str(null)
+                    
+                print('-------------- saving file as: {} -------------'.format(filename))
+                
+                print('Performing grid search for: {} \n'.format(mdl_label))
+                
+                mdl1 = inner_loop(mdl, mdl_label, X1_train, y_train, group_train, inner_cv, 10)  
+                
+                mdl1.fit(X1_train, y_train)
+                y1_pred= mdl1.predict(X1_test)
+                
+                mdls, mdl_labels = get_models('regression', ['ensemble_reg'])
+                
+                for mdl, mdl_label in zip(mdls, mdl_labels):
+                    mdl = inner_loop(mdl, mdl_label, X2_train, y_train, group_train, inner_cv, 10)
+                    mdl.fit(X2_train, y_train)
+                    y2_pred= mdl.predict(X2_test)
+                    
+                print(mdl)
+                print(mdl.named_steps[mdl_label].coef_)
+                ## HAUFE TRANSFORMS:
+                #activation = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
+                #y_pred= mdl.predict(X_test)
+                print('corr two models: ' , np.corrcoef(y1_pred, y2_pred)[0])
+                avg_pred = np.mean([y1_pred, y2_pred], axis=0)
+                expl=explained_variance_score(y_test, avg_pred)
+
+                #variable_importance.append(mdl.named_steps[mdl_label].coef_)
+                correlations_ensemble[mdl_idx, cv_fold] = np_pearson_cor(y_test,avg_pred)[0]
+                correlations_chaco[mdl_idx, cv_fold] = np_pearson_cor(y_test,y1_pred)[0]
+                correlations_demog[mdl_idx, cv_fold] = np_pearson_cor(y_test,y2_pred)[0]
+
+                print('Explained variance: {} \n'.format(explained_variance_score(y_test, avg_pred)))
+                print('Correlation: {} \n'.format(np_pearson_cor(y_test,avg_pred)))
+                
+                print('Corr chaco only: {} \n'.format(np_pearson_cor(y_test, y1_pred)[0]))
+                print('Corr demog only: {} \n'.format(np_pearson_cor(y_test, y2_pred)[0]))
+
+                explained_var[mdl_idx, cv_fold]=expl
+                if save_models:
+                    models[mdl_idx, cv_fold] = mdl1
+                    
+                mdl_idx += 1
+
+        print("Saving data...")
+        np.save(os.path.join(results_path, filename + "_scores.npy"), explained_var)
+        np.save(os.path.join(results_path, filename + "_model.npy"), models)
+        np.save(os.path.join(results_path, filename + "_correlations_ensemble.npy"), correlations_ensemble)
+        np.save(os.path.join(results_path, filename + "_correlations_demog.npy"), correlations_demog)
+        np.save(os.path.join(results_path, filename + "_correlations_chaco.npy"), correlations_chaco)
+
+        np.save(os.path.join(results_path, filename + "_model_labels.npy"), mdls_labels)
+        np.save(os.path.join(results_path, filename + "_variable_impts.npy"), variable_importance)
+        np.save(os.path.join(results_path, filename + "_test_group_sizes.npy"), size_testgroup)
+        
+
 
