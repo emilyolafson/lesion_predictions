@@ -37,6 +37,41 @@ corrs_shen268_chacoconn_5<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/e
 
 
 
+r2scores_fs86subj_chacovol_1<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/r2scores_fs86subj_chacovol_1.txt",sep = ","))
+r2scores_fs86subj_chacovol_5<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/r2scores_fs86subj_chacovol_5.txt",sep = ",") )
+corrs_fs86subj_chacovol_1<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_fs86subj_chacovol_1.txt",sep = ",") )
+corrs_fs86subj_chacovol_5<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_fs86subj_chacovol_5.txt",sep = ",") )
+r2scores_shen268_chacovol_1<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/r2scores_shen268_chacovol_1.txt",sep = ",") )
+r2scores_shen268_chacovol_5<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/r2scores_shen268_chacovol_5.txt",sep = ",") )
+corrs_shen268_chacovol_1<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_shen268_chacovol_1.txt",sep = ",") )
+corrs_shen268_chacovol_5<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_shen268_chacovol_5.txt",sep = ",") )
+
+# CST template - all ROIs
+r2scores_fs86subj_chacovol_1_cstall<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/r2scores_fs86subj_chacovol_1_lesionload.txt",sep = ","))
+r2scores_fs86subj_chacovol_5_cstall<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/r2scores_fs86subj_chacovol_5_lesionload.txt",sep = ","))
+corrs_fs86subj_chacovol_1_cstall<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_fs86subj_chacovol_1_lesionload.txt",sep = ","))
+corrs_fs86subj_chacovol_5_cstall<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_fs86subj_chacovol_5_lesionload.txt",sep = ","))
+r2scores_shen268_chacovol_1_cstall<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/r2scores_shen268_chacovol_1_lesionload.txt",sep = ","))
+r2scores_shen268_chacovol_5_cstall<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/r2scores_shen268_chacovol_5_lesionload.txt",sep = ","))
+corrs_shen268_chacovol_1_cstall<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_shen268_chacovol_1_lesionload.txt",sep = ","))
+corrs_shen268_chacovol_5_cstall<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_shen268_chacovol_5_lesionload.txt",sep = ","))
+
+# CST template - only M1
+r2scores_fs86subj_chacovol_1_cst<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/r2scores_fs86subj_chacovol_1_lesionload_cst.txt",sep = ","))
+r2scores_fs86subj_chacovol_5_cst<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/r2scores_fs86subj_chacovol_5_lesionload_cst.txt",sep = ","))
+corrs_fs86subj_chacovol_1_cst<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_fs86subj_chacovol_1_lesionload_cst.txt",sep = ","))
+corrs_fs86subj_chacovol_5_cst<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_fs86subj_chacovol_5_lesionload_cst.txt",sep = ","))
+r2scores_shen268_chacovol_1_cst<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/r2scores_shen268_chacovol_1_lesionload_cst.txt",sep = ","))
+r2scores_shen268_chacovol_5_cst<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/r2scores_shen268_chacovol_5_lesionload_cst.txt",sep = ","))
+corrs_shen268_chacovol_1_cst<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_shen268_chacovol_1_lesionload_cst.txt",sep = ","))
+corrs_shen268_chacovol_5_cst<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_shen268_chacovol_5_lesionload_cst.txt",sep = ","))
+
+#ensemble
+corrs_shen268_chacovol_1_ensemble<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_shen268_chacovol_1_ensemble.txt",sep = ","))
+corrs_shen268_chacovol_5_ensemble<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_shen268_chacovol_5_ensemble.txt",sep = ","))
+corrs_fs86subj_chacovol_1_ensemble<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_fs86subj_chacovol_1_ensemble.txt",sep = ","))
+corrs_fs86subj_chacovol_5_ensemble<-rowMeans(read.table("/Users/emilyolafson/GIT/ENIGMA/enigma_disconnections/results/corrs_fs86subj_chacovol_5_ensemble.txt",sep = ","))
+
 
 
 len=25
