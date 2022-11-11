@@ -1,32 +1,26 @@
 from stat import FILE_ATTRIBUTE_SPARSE_FILE
 import sys; sys.path
-import pandas as pd
 import numpy as np 
-import seaborn as sns
-import scipy.io as sio
 from scipy.stats import pearsonr
 import os
-from sklearn.model_selection import GridSearchCV, KFold, StratifiedKFold
+from sklearn.model_selection import GridSearchCV, KFold
 from sklearn import preprocessing, linear_model
-from sklearn.metrics import explained_variance_score,accuracy_score, recall_score,roc_auc_score,mean_absolute_error
-from sklearn.preprocessing import StandardScaler
-from joblib import parallel_backend, Parallel, delayed
+from sklearn.metrics import explained_variance_score,accuracy_score,roc_auc_score,mean_absolute_error
 import matplotlib
 from sklearn.pipeline import Pipeline
-from sklearn.linear_model import Lasso, Ridge, ElasticNet,LinearRegression
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import Lasso, Ridge, ElasticNet,LinearRegression,LogisticRegression
 from sklearn.svm import SVC
 from sklearn.decomposition import PCA
-from sklearn.feature_selection import SelectKBest,f_regression,f_classif,mutual_info_classif
+from sklearn.feature_selection import SelectKBest,f_regression
 import matplotlib.pyplot as plt
-from matplotlib.pyplot import figure
 import warnings
-from sklearn.model_selection import RepeatedKFold, GroupShuffleSplit,ShuffleSplit,GroupKFold, LeaveOneGroupOut, train_test_split, GridSearchCV, cross_val_score, KFold, StratifiedKFold
-
+from sklearn.model_selection import GroupShuffleSplit,ShuffleSplit,GroupKFold, LeaveOneGroupOut, KFold
+import logging
 import math
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder 
 from sklearn.ensemble import RandomForestClassifier
-
+from matplotlib.ticker import (MultipleLocator, FormatStrFormatter,
+                               AutoMinorLocator)
 from functools import partial
 import warnings
 warnings.filterwarnings('ignore') 
@@ -92,7 +86,7 @@ def prepare_data(X):
     zeros=np.sum(zeros,0)
     zeros=zeros==X.shape[0]
     X=X[:,~zeros]
-    print("Final size of X: " + str(X.shape))
+    logprint("Final size of X: " + str(X.shape))
     
     return X
 
@@ -101,7 +95,7 @@ def prepare_image_data(X):
 
     # remove inputs that are 0 for all subjects
     X=np.reshape(X, (101,902629))
-    print("Final size of X: " + str(X.shape))
+    logprint("Final size of X: " + str(X.shape))
     
     return X
 
@@ -129,8 +123,8 @@ def np_pearson_cor_abs(x, y):
         y - output N x 1
         
         returns correlation p x 1 '''
-    print(x.shape)
-    print(y.shape)
+    logprint(x.shape)
+    logprint(y.shape)
     xv = x - x.mean(axis=0)
     yv = y - y.mean(axis=0)
     xvss = (xv * xv).sum(axis=0)
@@ -237,18 +231,18 @@ def run_classification(X, Y, group, inner_cv, outer_cv, models_tested, atlas, y_
 
     for n in range(0,nperms):
         
-        print('PERMUTATION: {}'.format(n))
+        logprint('PERMUTATION: {}'.format(n))
         
         for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X, Y, group)):
 
-            print("Fold: {}".format(cv_fold + 1))
+            logprint("Fold: {}".format(cv_fold + 1))
             
             X_train, X_test = X[train_id], X[test_id]
             y_train, y_test = Y[train_id], Y[test_id]
             group_train, group_test = group[train_id], group[test_id]
             
-            print('Size of test group: {}'.format(group_test.shape[0]))
-            print('Size of train group: {}'.format(group_train.shape[0]))
+            logprint('Size of test group: {}'.format(group_test.shape[0]))
+            logprint('Size of train group: {}'.format(group_train.shape[0]))
 
             mdls, mdls_labels = get_models('classification', models_tested)
             size_testgroup.append(group_test.shape[0])
@@ -257,19 +251,19 @@ def run_classification(X, Y, group, inner_cv, outer_cv, models_tested, atlas, y_
                 filename = results_path + '/{}_{}_{}_{}_{}_crossval{}_{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
         
                 if null>0:
-                    print('NULL!')
+                    logprint('NULL!')
                     filename = filename + '_null_' + str(null)
                     
-                print('-------------- saving file as: {} -------------'.format(filename))
+                logprint('-------------- saving file as: {} -------------'.format(filename))
                 
-                print('Performing grid search for: {} \n'.format(mdl_label))
+                logprint('Performing grid search for: {} \n'.format(mdl_label))
                 mdl = inner_loop(mdl, mdl_label, X_train, y_train, group_train, inner_cv, 10)  
                 mdl.fit(X_train, y_train)
                 y_pred= mdl.predict(X_test)
                 
                 y_score = mdl.predict_proba(X_test)[:, 1]
                 accuracies =  accuracy_score(y_test, y_pred)
-                print(accuracies)
+                logprint(accuracies)
                 
                 bacc=balanced_accuracy(y_test,y_pred)
                 ppvscore = ppv(y_test,y_pred)
@@ -278,13 +272,13 @@ def run_classification(X, Y, group, inner_cv, outer_cv, models_tested, atlas, y_
                 #variable_importance.append(mdl.named_steps[mdl_label].coef_)
                 #correlations[mdl_idx, cv_fold] = np_pearson_cor(y_test,y_pred)[0]
                 
-                print('Accuracy: {} \n'.format(accuracies))
-                print('Balanced accuracy: {} \n'.format(bacc))
-                print('PPV: {}'.format(ppvscore))
-                print('NPV: {}'.format(npvscore))
-                print('AUC: {}'.format(auc))
+                logprint('Accuracy: {} \n'.format(accuracies))
+                logprint('Balanced accuracy: {} \n'.format(bacc))
+                logprint('PPV: {}'.format(ppvscore))
+                logprint('NPV: {}'.format(npvscore))
+                logprint('AUC: {}'.format(auc))
 
-                #print('Correlation: {} \n'.format(np_pearson_cor(y_test,y_pred)))
+                #logprint('Correlation: {} \n'.format(np_pearson_cor(y_test,y_pred)))
 
                 balanced_accuracies[mdl_idx, cv_fold]=bacc
                 
@@ -293,7 +287,7 @@ def run_classification(X, Y, group, inner_cv, outer_cv, models_tested, atlas, y_
                     
                 mdl_idx += 1
 
-        print("Saving data...")
+        logprint("Saving data...")
         #np.save(os.path.join(results_path, filename + "_scores.npy"), balanced_accuracies)
         np.save(os.path.join(results_path, filename + "_model.npy"), models)
        # np.save(os.path.join(results_path, filename + "_correlations.npy"), correlations)
@@ -464,7 +458,7 @@ def get_models(model_type='regression', model_list=None):
         return mdls, mdls_labels
         
     elif model_type == 'classification': 
-        print('Selecting classification models')
+        logprint('Selecting classification models')
         if 'svm' in model_list:
             svm = Pipeline([ ('svm', SVC(probability=True, class_weight='balanced', kernel='linear', random_state=0))])
             mdls.append(svm)
@@ -486,11 +480,11 @@ def get_models(model_type='regression', model_list=None):
 def inner_loop(mdl, mdl_label, X, Y, group, inner_cv, n_jobs):
     
     if mdl_label =='ensemble_reg':
-        print('No feature selection')
+        logprint('No feature selection')
     elif mdl_label=='linear_regression':
-        print('No feature selection -- Linear regression')
+        logprint('No feature selection -- Linear regression')
     elif mdl_label=='ridge_nofeatselect':
-        print('No feature selection -- Ridge regression')
+        logprint('No feature selection -- Ridge regression')
     else:
         k_range = determine_featselect_range(X)
     
@@ -538,17 +532,17 @@ def inner_loop(mdl, mdl_label, X, Y, group, inner_cv, n_jobs):
                  'rf__max_depth': [2, 5, 7, 9]}
         score = 'roc_auc'
     else:
-        print('Model not found..')
+        logprint('Model not found..')
         return mdl
     
     if mdl_label == 'ensemble_reg':
         return mdl
-    if mdl_label=='linear_regression':
+    elif mdl_label=='linear_regression':
         return mdl
-    if mdl_label == 'ridge_nofeatselect':
+    elif mdl_label == 'ridge_nofeatselect':
         return mdl
     else:
-        print('Performing grid search for: {} \n'.format(mdl_label))
+        logprint('Performing grid search for: {} \n'.format(mdl_label))
 
         grid_search = GridSearchCV(estimator=mdl, param_grid=grid_params, scoring=score, cv=inner_cv, refit=True, verbose=1,
                                 n_jobs=n_jobs, return_train_score=False, pre_dispatch='2*n_jobs')
@@ -583,7 +577,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
                 activation_full=np.insert(activation_full, zeroidx[k],0)
                 k=k+1
             
-            #print("Full 3192: " + str(np.sum(activation_full>0)))
+            #logprint("Full 3192: " + str(np.sum(activation_full>0)))
             # fill spots with 0's (up to 3655)
             zeros=X==0
             zeros=np.sum(zeros,0) # number of zeros across subjects
@@ -601,7 +595,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
                 k=k+1
             
             activation = a
-        if atlas == 'shen268':
+        elif atlas == 'shen268':
             
             idx=np.ones(shape=(268,1), dtype='bool')
             idx[cols]=False # set SC weights that are features to be 1
@@ -616,7 +610,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
                 activation_full=np.insert(activation_full, zeroidx[k],0)
                 k=k+1
             
-            #print("Full 3192: " + str(np.sum(activation_full>0)))
+            #logprint("Full 3192: " + str(np.sum(activation_full>0)))
             # fill spots with 0's (up to 3655)
             zeros=X==0
             zeros=np.sum(zeros,0) # number of zeros across subjects
@@ -634,7 +628,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
                 k=k+1
             
             activation = a
-    if chaco_type=='chacoconn':
+    elif chaco_type=='chacoconn':
         if atlas == 'fs86subj':
                   
             idx=np.ones(shape=(3192,1), dtype='bool')
@@ -650,7 +644,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
                 activation_full=np.insert(activation_full, zeroidx[k],0)
                 k=k+1
             
-            #print("Full 3192: " + str(np.sum(activation_full>0)))
+            #logprint("Full 3192: " + str(np.sum(activation_full>0)))
             # fill spots with 0's (up to 3655)
             zeros=X==0
             zeros=np.sum(zeros,0) # number of zeros across subjects
@@ -658,8 +652,8 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
             X=X[:,~zeros]
             
             zeroidx=np.arange(0, 3655)
-            print(zeroidx.shape)
-            print(zeros.shape)
+            logprint(zeroidx.shape)
+            logprint(zeros.shape)
             zeroidx=zeroidx[zeros]
             
             # fill spots with 0's
@@ -674,7 +668,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
             inds = np.triu_indices(86, k=1)
             fs86_counts[inds] = activation
             activation = fs86_counts
-        if atlas == 'shen268':
+        elif atlas == 'shen268':
             idx=np.ones(shape=(25056,1), dtype='bool')
             idx[cols]=False # set SC weights that are features to be 1
             idx=idx.flatten()
@@ -688,7 +682,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
                 activation_full=np.insert(activation_full, zeroidx[k],0)
                 k=k+1
             
-            #print("Full 3192: " + str(np.sum(activation_full>0)))
+            #logprint("Full 3192: " + str(np.sum(activation_full>0)))
             # fill spots with 0's (up to 3655)
             zeros=X==0
             zeros=np.sum(zeros,0) # number of zeros across subjects
@@ -713,7 +707,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
     return activation
     
 def run_regression(x, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null):
-    
+
     if atlas =='lesionload_m1':
         X=np.array(x).reshape(-1,1)
     elif atlas == 'lesionload_all':
@@ -721,7 +715,7 @@ def run_regression(x, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var,
     else:
         X = prepare_data(x) 
         
-    print(X.shape)
+    logprint(X.shape)
     outer_cv_splits = outer_cv.get_n_splits(X, Y, group)
  
     models = np.zeros((len(models_tested), outer_cv_splits), dtype=object)
@@ -732,22 +726,22 @@ def run_regression(x, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var,
 
     for n in range(0,nperms):
         
-        print('\n\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ PERMUTATION: {}/{} ~ ~ ~ ~ ~ ~ ~ ~ ~ \n\n'.format(n, nperms))
+        logprint('\n\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ PERMUTATION: {}/{} ~ ~ ~ ~ ~ ~ ~ ~ ~ \n\n'.format(n, nperms))
         
         activation_weights=[]
         
         for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X, Y, group)):
 
-            print("------ Outer Fold: {}/{} ------".format(cv_fold + 1, outer_cv_splits))
+            logprint("------ Outer Fold: {}/{} ------".format(cv_fold + 1, outer_cv_splits))
             
             X_train, X_test = X[train_id], X[test_id]
             y_train, y_test = Y[train_id], Y[test_id]
             group_train, group_test = group[train_id], group[test_id]
             
-            print('Size of test group: {}'.format(group_test.shape[0]))
-            print('Size of train group: {}'.format(group_train.shape[0]))
+            logprint('Size of test group: {}'.format(group_test.shape[0]))
+            logprint('Size of train group: {}'.format(group_train.shape[0]))
             
-            print('Number of sites in test set: {}'.format(np.unique(group_test).shape[0]))            
+            logprint('Number of sites in test set: {}'.format(np.unique(group_test).shape[0]))            
             mdls, mdls_labels = get_models('regression', models_tested) 
 
             size_testgroup.append(group_test.shape[0])
@@ -757,7 +751,6 @@ def run_regression(x, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var,
             for mdl, mdl_label in zip(mdls, mdls_labels): 
 
                 mdl = inner_loop(mdl, mdl_label, X_train, y_train, group_train, inner_cv, 10)  
-                print('Performing grid search for: {} \n'.format(mdl_label))
 
                 mdl.fit(X_train, y_train)
                 
@@ -778,21 +771,21 @@ def run_regression(x, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var,
                 variable_importance.append(mdl.named_steps[mdl_label].coef_)
                 correlations[mdl_idx, cv_fold] = np_pearson_cor(y_test,y_pred)[0]
                 
-                print('R^2 score: {} '.format(np.round(explained_variance_score(y_test, y_pred), 3)))
-                print('Correlation: {} '.format(np.round(np_pearson_cor(y_test,y_pred)[0][0], 3)))
+                logprint('R^2 score: {} '.format(np.round(explained_variance_score(y_test, y_pred), 3)))
+                logprint('Correlation: {} '.format(np.round(np_pearson_cor(y_test,y_pred)[0][0], 3)))
                 explained_var[mdl_idx, cv_fold]=expl
                 if save_models:
                     models[mdl_idx, cv_fold] = mdl
                     
                 mdl_idx += 1
-                print('\n')
+                logprint('\n')
 
         if null>0:
-            print('NULL!')
+            logprint('NULL!')
             filename = filename + '_null_' + str(null)
 
-        print('-------------- saving file w root name: {} -------------'.format(filename))
-        print('\n\n')
+        logprint('-------------- saving file w root name: {} -------------'.format(filename))
+        logprint('\n\n')
 
         np.save(os.path.join(results_path, filename + "_scores.npy"), explained_var)
         np.save(os.path.join(results_path, filename + "_model.npy"), models)
@@ -807,7 +800,7 @@ def run_regression(x, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var,
 def run_regression_ensemble(X1, C, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null):
     X2 = C
     
-    print('\nRunning ensemble model!')
+    logprint('\nRunning ensemble model!')
     
     if atlas =='lesionload_m1':
         X1=np.array(X1).reshape(-1,1)
@@ -816,7 +809,7 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv, outer_cv, models_tested, 
     else:
         X1 = prepare_data(X1) 
         
-    print(X1.shape)
+    logprint(X1.shape)
     
     outer_cv_splits = outer_cv.get_n_splits(X1, Y, group)
     
@@ -835,11 +828,11 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv, outer_cv, models_tested, 
 
     size_testgroup =[]
     for n in range(0,nperms):
-        print('\n\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ PERMUTATION: {}/{} ~ ~ ~ ~ ~ ~ ~ ~ ~ \n\n'.format(n, nperms))
+        logprint('\n\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ PERMUTATION: {}/{} ~ ~ ~ ~ ~ ~ ~ ~ ~ \n\n'.format(n, nperms))
         
         for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X1, Y, group)):
 
-            print("------ Outer Fold: {}/{} ------".format(cv_fold + 1, outer_cv_splits))
+            logprint("------ Outer Fold: {}/{} ------".format(cv_fold + 1, outer_cv_splits))
             
             X1_train, X1_test = X1[train_id], X1[test_id]
             X2_train, X2_test = X2[train_id], X2[test_id]
@@ -847,9 +840,9 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv, outer_cv, models_tested, 
             y_train, y_test = Y[train_id], Y[test_id]
             group_train, group_test = group[train_id], group[test_id]
             
-            print('Size of test group: {}'.format(group_test.shape[0]))
-            print('Size of train group: {}'.format(group_train.shape[0]))
-            print('Number of sites in test set: {}\n'.format(np.unique(group_test).shape[0]))            
+            logprint('Size of test group: {}'.format(group_test.shape[0]))
+            logprint('Size of train group: {}'.format(group_train.shape[0]))
+            logprint('Number of sites in test set: {}\n'.format(np.unique(group_test).shape[0]))            
 
             size_testgroup.append(group_test.shape[0])
             
@@ -857,13 +850,13 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv, outer_cv, models_tested, 
             mdls, mdls_labels = get_models('regression', models_tested) 
             
             # first model: X1 (lesion data)
-            print('~~ Running model 1: lesion info ~~~')
+            logprint('~~ Running model 1: lesion info ~~~')
             for mdl, mdl_label in zip(mdls, mdls_labels): 
                 mdl1 = inner_loop(mdl, mdl_label, X1_train, y_train, group_train, inner_cv, 10)  
                 mdl1.fit(X1_train, y_train)
                 y1_pred= mdl1.predict(X1_test)
                 
-            print('~~ Running model 2: demographics ~~~')
+            logprint('~~ Running model 2: demographics ~~~')
             # second model: demographic data (unpenalized)
             mdls, mdl_labels = get_models('regression', ['linear_regression'])
             for mdl, mdl_label2 in zip(mdls, mdl_labels):
@@ -890,13 +883,13 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv, outer_cv, models_tested, 
             explained_var[mdl_idx, cv_fold] =explained_variance_score(y_test, avg_pred)
             explained_var_lesion[mdl_idx, cv_fold] = explained_variance_score(y_test, y1_pred)
             explained_var_demog[mdl_idx, cv_fold] = explained_variance_score(y_test, y2_pred)
-            print('\n')
-            print('R^2 score (ensemble): {} '.format(np.round(explained_variance_score(y_test, avg_pred), 3)))
-            print('Correlation (ensemble): {} '.format(np.round(np_pearson_cor(y_test,avg_pred)[0][0], 3)))
-            print('\n')
-            print('Corr chaco only: {} '.format(np.round(np_pearson_cor(y_test, y1_pred)[0][0], 3)))
-            print('Corr demog only: {} '.format(np.round(np_pearson_cor(y_test, y2_pred)[0][0], 3)))
-            print('\n')
+            logprint('\n')
+            logprint('R^2 score (ensemble): {} '.format(np.round(explained_variance_score(y_test, avg_pred), 3)))
+            logprint('Correlation (ensemble): {} '.format(np.round(np_pearson_cor(y_test,avg_pred)[0][0], 3)))
+            logprint('\n')
+            logprint('Corr chaco only: {} '.format(np.round(np_pearson_cor(y_test, y1_pred)[0][0], 3)))
+            logprint('Corr demog only: {} '.format(np.round(np_pearson_cor(y_test, y2_pred)[0][0], 3)))
+            logprint('\n')
             explained_var[mdl_idx, cv_fold]=expl
             if save_models:
                 models[mdl_idx, cv_fold] = mdl1
@@ -905,10 +898,10 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv, outer_cv, models_tested, 
 
 
         if null>0:
-            print('NULL!')
+            logprint('NULL!')
             filename = filename + '_null_' + str(null)
-        print('-------------- saving file w root name: {} -------------'.format(filename))
-        print('\n\n')
+        logprint('-------------- saving file w root name: {} -------------'.format(filename))
+        logprint('\n\n')
         np.save(os.path.join(results_path, filename + "_scores_ensemble.npy"), explained_var)
         np.save(os.path.join(results_path, filename + "_scores_lesion.npy"), explained_var_lesion)
         np.save(os.path.join(results_path, filename + "_scores_demog.npy"), explained_var_demog)
@@ -929,28 +922,28 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv, outer_cv, models_tested, 
 def set_up_and_run_model(crossval, model_tested,lesionload,lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null, ensemble):
     
     if crossval == '1':
-        print('1. Outer CV: Random partition fixed fold sizes, Inner CV: Random partition fixed fold sizes')
+        logprint('1. Outer CV: Random partition fixed fold sizes, Inner CV: Random partition fixed fold sizes')
         # is random when random_state not specified 
         outer_cv = KFold(n_splits=5, shuffle=True)
         inner_cv = KFold(n_splits=5, shuffle=True)
 
-    if crossval == '2':
-        print('2. Outer CV: Leave-one-site-out, Inner CV:  Leave-one-site-out')
+    elif crossval == '2':
+        logprint('2. Outer CV: Leave-one-site-out, Inner CV:  Leave-one-site-out')
         outer_cv = LeaveOneGroupOut()
         inner_cv = LeaveOneGroupOut()
 
-    if crossval == '3':
-        print('3. Outer CV: Group K-fold, Inner CV: Group K-fold')
+    elif crossval == '3':
+        logprint('3. Outer CV: Group K-fold, Inner CV: Group K-fold')
         outer_cv = GroupKFold(n_splits=5)
         inner_cv = GroupKFold(n_splits=5)
         
-    if crossval == '4':
-        print('4 Outer CV: Shuffle, Inner CV:  Shuffle')
+    elif crossval == '4':
+        logprint('4 Outer CV: Shuffle, Inner CV:  Shuffle')
         outer_cv = ShuffleSplit(n_splits=5)
         inner_cv = ShuffleSplit(n_splits=5)
         
-    if crossval == '5':
-        print('5 Outer CV: GroupShuffleSplit, Inner CV:  GroupShuffleSplit')
+    elif crossval == '5':
+        logprint('5 Outer CV: GroupShuffleSplit, Inner CV:  GroupShuffleSplit')
         outer_cv = GroupShuffleSplit(train_size=.8)
         inner_cv = GroupShuffleSplit(train_size = 0.8)
     
@@ -959,13 +952,12 @@ def set_up_and_run_model(crossval, model_tested,lesionload,lesionload_type, X, Y
             if lesionload_type == 'none':
                 if model_tested[0]=='ridge':
                     run_regression(X, Y, site, inner_cv,outer_cv,model_tested, atlas, y_var, chaco_type, subset,save_models, results_path,crossval, nperms,null)
-                    print('ridge')
-            if lesionload_type =='M1':
+            elif lesionload_type =='M1':
                 atlas = 'lesionload_m1'
                 model_tested = ['linear_regression']
                 chaco_type ='NA'
                 run_regression(lesionload, Y, site, inner_cv,outer_cv,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
-            if lesionload_type =='all':
+            elif lesionload_type =='all':
                 atlas = 'lesionload_all'
                 model_tested= ['ridge_nofeatselect']
                 chaco_type ='NA'
@@ -974,12 +966,12 @@ def set_up_and_run_model(crossval, model_tested,lesionload,lesionload_type, X, Y
             if lesionload_type == 'none':
                 if model_tested[0]=='ridge':
                     run_regression_ensemble(X, C, Y, site, inner_cv,outer_cv,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
-            if lesionload_type =='M1':
+            elif lesionload_type =='M1':
                 atlas = 'lesionload_m1'
                 model_tested = ['linear_regression']
                 chaco_type = 'NA'
                 run_regression_ensemble(lesionload, C, Y, site, inner_cv,outer_cv,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
-            if lesionload_type =='all':
+            elif lesionload_type =='all':
                 atlas = 'lesionload_all'
                 model_tested= ['ridge_nofeatselect']
                 chaco_type ='NA'
@@ -997,11 +989,12 @@ def save_model_outputs(results_path, atlas, y_var, chaco_type, subset, model_tes
         model_tested= ['ridge_nofeatselect']
         chaco_type = 'NA'
 
-
     #save_model_outputs()
     mdl_label = model_tested[0]
     rootname = results_path + '/{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval)
-        
+    
+    r2scores_allperms=np.zeros(shape=(nperms, 5))
+    correlation_allperms=np.zeros(shape=(nperms, 5))
     
     for n in range(0, nperms):
         if ensemble =='none':
@@ -1011,10 +1004,8 @@ def save_model_outputs(results_path, atlas, y_var, chaco_type, subset, model_tes
                 varimpts=np.load(rootname +'_perm'+ str(n) + '_activation_weights.npy',allow_pickle=True)
                 mdl=np.load(rootname +'_perm'+ str(n) + '_model.npy',allow_pickle=True)
                 
-                print('r2scores dim: {}'.format(r2scores.shape))
-                print('r2scores: {}'.format(r2scores))
-                print('corr dim: {}'.format(correlation.shape))
-                print('varimpts dim: {}'.format(varimpts.shape))
+                r2scores_allperms[n,] = r2scores
+                correlation_allperms[n,] = correlation
 
                 if mdl_label == 'ridge':
                     alphas=[]
@@ -1032,10 +1023,7 @@ def save_model_outputs(results_path, atlas, y_var, chaco_type, subset, model_tes
                     #varimpts_ensemble=np.load(rootname +'_perm'+ str(n) +  '_ensemble'+ '_activation_weights.npy',allow_pickle=True)
                     mdl=np.load(rootname +'_perm'+ str(n) + '_ensemble'+  '_model.npy',allow_pickle=True)
                     
-                    print('r2scores dim: {}'.format(r2scores_ensemble.shape))
-                    print('r2scores: {}'.format(r2scores_ensemble))
-                    print('corr dim: {}'.format(correlation_ensemble.shape))
-                   # print('varimpts dim: {}'.format(varimpts_ensemble.shape))
+                   # logprint('varimpts dim: {}'.format(varimpts_ensemble.shape))
 
                     if mdl_label == 'ridge':
                         alphas=[]
@@ -1044,3 +1032,39 @@ def save_model_outputs(results_path, atlas, y_var, chaco_type, subset, model_tes
                         for a in range(0,5):
                             alphas.append(mdl[0][a][mdl_label].alpha)
                             feats.append(mdl[0][a]['featselect'].k) 
+                            
+    return r2scores_allperms, correlation_allperms
+
+def logprint(string):
+    print(string)
+    logging.info(string)
+    
+def create_performance_figures(r2all, corrall,label, results_path, atlas):
+    font = {'family' : 'normal',
+            'size'   : 22}
+
+    matplotlib.rc('font', **font)
+    
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize =(20, 20))
+    fig.tight_layout()
+    plt.subplots_adjust(bottom=0.5)
+    
+    print(label)
+    print(len(label))
+    print(r2all.shape)
+    ax1.boxplot(np.transpose(r2all))
+    ax1.set_ylim([0, 1])
+    ax1.set_ylabel('{}'.format('$R^2$'))
+    
+    ax1.xaxis.set_ticks([1, 2])
+    
+    ax1.xaxis.set_ticklabels(label, rotation=90)
+
+    ax2.boxplot(np.mean(corrall,axis=1))
+    ax2.set_ylim([0, 1])
+    ax2.set_ylabel('Correlation')
+
+    print([results_path + atlas + '.png'])
+    plt.savefig(results_path + '/figures/' + atlas + '.png')
+
+    
