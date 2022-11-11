@@ -67,20 +67,66 @@ def load_chaco_data(ids,chacovar):
     return X
             
 def remove_missing_motor(df):
+    print('Removing subjects who do not have motor scores.')
+    print('---- Original N = {}'.format(df.shape[0]))
+
     idx=np.isnan(df['NORMED_MOTOR'])
     df=df[~idx]
+    print('---- New N = {}'.format(df.shape[0]))
+    print('\n')
     return df 
 
 def remove_missing_scans(df, missinglist):
+    print('Removing subjects who do not have lesion masks.')
+    print('---- Original N = {}'.format(df.shape[0]))
+
     for missingscan in missinglist:
-        df = df[df['BIDS_ID'] != missingscan]
+        df = df[df['BIDS_ID'] != missingscan] 
+
+    print('---- New N = {}'.format(df.shape[0]))
+    print('\n')
+    return df
+
+def remove_missing_demographics(df,covariates):
+    missing_ids = np.zeros(df.shape[0])
+    print('Removing subjects that do not have any of: {}'.format(covariates))
+    print('---- Original N = {}'.format(df.shape[0]))
+    for cov in covariates:
+        
+        missing_ids = np.isnan(df[cov]) + missing_ids
+        
+    missing_ids = missing_ids>0
+    df=df[~missing_ids]
+    print('---- New N = {}'.format(df.shape[0]))
+    print('\n')
     return df
 
 def load_csv(csv_path):
     df = pd.read_csv(csv_path, header =0)
     return df
 
-def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None):
+def get_chronicity_subset(df, subset_data):
+    print('Removing subjects that are not {} stroke subjects'.format(subset_data))
+    print('---- Original N = {}'.format(df.shape[0]))
+    if subset_data == 'chronic':
+            df_chronic = df[df['CHRONICITY']==180]
+            df_chronic = df_chronic.reset_index(drop=True)
+            df_final = df_chronic
+            ids = df_chronic['BIDS_ID']  
+    elif subset_data == 'acute':
+        df_acute = df[df['CHRONICITY']==90]
+        df_acute = df_acute.reset_index(drop=True)
+        df_final = df_acute
+        ids = df_acute['BIDS_ID']    
+    else:
+        ids = df['BIDS_ID']
+        df_final = df
+    print('---- New N = {}'.format(df_final.shape[0]))
+    print('\n')
+
+    return df_final, ids
+
+def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None, ll=None):
     """
     Formats ENIGMA data (ChaCo scores, demographic & clinical info) for classification or regression.
 
@@ -100,7 +146,7 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
         Label for variable set as "y". Default is 'normed_motor_scores', can be 'severity' for classification tasks.
     :param remove_demog : int, default=None
         If specified, remove subjs from final list that dont have demographic scores (sex, age, lesioned hem)
-    :return: X, C, y, sites
+    :return: X, C, y, lesionload, sites
     """
     
     df = load_csv(csv_path)
@@ -124,13 +170,14 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
         y_var = y_var
     else:
         y_var = 'normed_motor_scores'
+
         
-    print('FULL DF SHAPE')
-    print(df.shape)
+    #print('FULL DF SHAPE')
+    #print(df.shape)
     # format data frame, remove missing data
     df = remove_missing_motor(df)
-    print('DF AFTER REMOVING MISSING MOTOR SCORES')
-    print(df.shape)
+    #print('DF AFTER REMOVING MISSING MOTOR SCORES')
+    #print(df.shape)
     
     # covariate extraction (age, sex, site, etc) 
     
@@ -148,37 +195,33 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
     else:
         covariates_list = []
         
+    all_ll_options = ['M1', 'all', 'none']
+    
+    if ll:
+        if isinstance(ll, str):
+            ll = ll
+        if not set([ll]).issubset(set(all_ll_options)):
+            raise RuntimeError('Warning! Unknown lesion load option specified: {} \n'
+                               'Only the following options are allowed: {} \n'.format(ll, all_ll_options))
+            
     if remove_demog:
         df = remove_missing_demographics(df,covariates_list)   
     
-    print('DF SHAPE AFTER REMOVAL OF MISSING DEMOGRAPHICS:')
-    print(df.shape)
+    #print('DF SHAPE AFTER REMOVAL OF MISSING DEMOGRAPHICS:')
+    #print(df.shape)
     ids=df['BIDS_ID']
     
-    if subset_data == 'chronic':
-        df_chronic = df[df['CHRONICITY']==180]
-        df_chronic = df_chronic.reset_index(drop=True)
-        df_final = df_chronic
-        ids = df_chronic['BIDS_ID']  
-      
-    elif subset_data == 'acute':
-        df_acute = df[df['CHRONICITY']==90]
-        df_acute = df_acute.reset_index(drop=True)
-        df_final = df_acute
-        ids = df_acute['BIDS_ID']    
-    else:
-        ids = df['BIDS_ID']
-        df_final = df
-    
-    print('DF SHAPE AFTER REMOVAL OF ACUTE:')
-    print(df_final.shape)
+    df_final, ids = get_chronicity_subset(df, subset_data)
+   
+    #print('DF SHAPE AFTER REMOVAL OF ACUTE:')
+    #print(df_final.shape)
           
     # find subjects who have motor scores but are missing scans.
     ids_fullpaths_nonemissing, missinglist = find_missing_scans(ids, parc, chacovar)
     df_final = remove_missing_scans(df_final,missinglist)  
 
-    print('DF SHAPE AFTER REMOVAL OF MISSING SCANS:')
-    print(df_final.shape)
+    #print('DF SHAPE AFTER REMOVAL OF MISSING SCANS:')
+    #print(df_final.shape)
     
     print('Loading data for atlas: {}, ChaCo scores: {}, subset: {}'.format(atlas, chacovar,subset_data))
     # load X data
@@ -203,18 +246,21 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
         y = df_final['NORMED_MOTOR'].values < 0.424
         y = y.astype(int)
     
-    print('Final size of data: \n X_data: {} by {} \n Y_data: length {} '.format(X.shape[0], X.shape[1], y.shape[0]))
-    return X, y, C, site
+    # load lesionload
 
-def remove_missing_demographics(df,covariates):
-    missing_ids = np.zeros(df.shape[0])
+    llvars = ['M1_CST', 'PMd_CST', 'PMv_CST','S1_CST','SMA_CST','preSMA_CST']
+    print('lesion load: ')
+    print(ll)
+    if ll=='all':
+        lesion_load = df_final.loc[:,llvars]
+    elif ll=='M1':
+        lesion_load=df_final.loc[:,'M1_CST']
+    elif ll=='none':
+        lesion_load=[]
     
-    for cov in covariates:
-        print(cov)
-        missing_ids = np.isnan(df[cov]) + missing_ids
-        
-    missing_ids = missing_ids>0
-    return df[~missing_ids]
+    print('Final size of data: \n X_data: {} by {} \n Y_data: length {} \n'.format(X.shape[0], X.shape[1], y.shape[0]))
+    return X, y, C, lesion_load, site
+
 
 
 
