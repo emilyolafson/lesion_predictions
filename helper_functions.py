@@ -978,18 +978,7 @@ def set_up_and_run_model(crossval, model_tested,lesionload,lesionload_type, X, Y
                 run_regression_ensemble(lesionload, C, Y, site, inner_cv,outer_cv,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
           
 def save_model_outputs(results_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,lesionload_type, ensemble):
-    
-    if lesionload_type =='M1':
-        atlas = 'lesionload_m1'
-        model_tested = ['linear_regression']
-        chaco_type = 'NA'
 
-    elif lesionload_type =='all':
-        atlas = 'lesionload_all'
-        model_tested= ['ridge_nofeatselect']
-        chaco_type = 'NA'
-
-    #save_model_outputs()
     mdl_label = model_tested[0]
     rootname = results_path + '/{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval)
     
@@ -1022,7 +1011,9 @@ def save_model_outputs(results_path, atlas, y_var, chaco_type, subset, model_tes
                     correlation_ensemble = np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_correlations_ensemble.npy',allow_pickle=True)
                     #varimpts_ensemble=np.load(rootname +'_perm'+ str(n) +  '_ensemble'+ '_activation_weights.npy',allow_pickle=True)
                     mdl=np.load(rootname +'_perm'+ str(n) + '_ensemble'+  '_model.npy',allow_pickle=True)
-                    
+                    r2scores_allperms[n,] = r2scores_ensemble
+                    correlation_allperms[n,] = correlation_ensemble
+
                    # logprint('varimpts dim: {}'.format(varimpts_ensemble.shape))
 
                     if mdl_label == 'ridge':
@@ -1039,7 +1030,7 @@ def logprint(string):
     print(string)
     logging.info(string)
     
-def create_performance_figures(r2all, corrall,label, results_path, atlas):
+def create_performance_figures(r2_scores, correlations,label, results_path):
     font = {'family' : 'normal',
             'size'   : 22}
 
@@ -1047,24 +1038,22 @@ def create_performance_figures(r2all, corrall,label, results_path, atlas):
     
     fig, (ax1, ax2) = plt.subplots(ncols=2, figsize =(20, 20))
     fig.tight_layout()
-    plt.subplots_adjust(bottom=0.5)
+    plt.subplots_adjust(bottom=0.6)
     
-    print(label)
-    print(len(label))
-    print(r2all.shape)
-    ax1.boxplot(np.transpose(r2all))
+    ax1.boxplot(np.transpose(r2_scores))
     ax1.set_ylim([0, 1])
     ax1.set_ylabel('{}'.format('$R^2$'))
-    
-    ax1.xaxis.set_ticks([1, 2])
-    
+    ax1.xaxis.set_ticks([x for x in range(1,len(label)+1)])
     ax1.xaxis.set_ticklabels(label, rotation=90)
 
-    ax2.boxplot(np.mean(corrall,axis=1))
+    ax2.boxplot(np.transpose(correlations))
     ax2.set_ylim([0, 1])
     ax2.set_ylabel('Correlation')
-
-    print([results_path + atlas + '.png'])
-    plt.savefig(results_path + '/figures/' + atlas + '.png')
+    print([x for x in range(1,len(label)+1)])
+    ax2.xaxis.set_ticks([x for x in range(1,len(label)+1)])
+    ax2.xaxis.set_ticklabels(label, rotation=90)
+    
+    print([results_path + 'boxplots' + '.png'])
+    plt.savefig(results_path + '/figures/' + 'boxplots' + '.png')
 
     
