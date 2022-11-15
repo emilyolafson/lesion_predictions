@@ -135,7 +135,7 @@ def np_pearson_cor_abs(x, y):
     return abs(np.maximum(np.minimum(result, 1.0), -1.0))
 
         
-def save_plots_true_pred(true, pred,filename, corr):
+def save_plots_true_pred(true, pred,results_path,filename, corr):
     f1 = plt.figure()
     plt.scatter(true, pred,s=10, c='black')
     plt.xlim(-0.1, 1.1)
@@ -143,6 +143,11 @@ def save_plots_true_pred(true, pred,filename, corr):
     plt.text(0.1, 0.1, corr)
     plt.xlabel('True normed motor score')
     plt.ylabel('Predicted normed motor score')
+    print('saving files')
+    print(results_path, filename + "_true.npy")
+    np.save(os.path.join(results_path, filename + "_true.npy"), true)
+    np.save(os.path.join(results_path, filename + "_pred.npy"), pred)
+
     plt.savefig(filename +'_truepred.png')
       
 def naive_pearson_cor(X, Y):
@@ -218,8 +223,6 @@ def feature_select_correlation(x_train, x_test, y, a):
     x_test_featselect=np.squeeze(x_test[:,ind],2)
 
     return x_train_featselect,x_test_featselect, ind
-
-
 def run_classification(X, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null):
     
     outer_cv_splits = outer_cv.get_n_splits(X, Y, group)
@@ -705,8 +708,32 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
             shen268_counts[inds] = activation
             activation = shen268_counts
     return activation
+
+def create_outer_cv(outer_cv_id):
+    if outer_cv_id=="1": # random
+        outer_cv = KFold(n_splits=5, shuffle=True)
+    elif outer_cv_id =="2": # leave one group out
+        outer_cv = LeaveOneGroupOut()
+    elif outer_cv_id =='3':
+        outer_cv = GroupKFold(n_splits=5)
+    elif outer_cv_id == "4" or outer_cv_id =="5":
+        outer_cv = GroupShuffleSplit(train_size=.8)
+    return outer_cv
+        
+def create_inner_cv(inner_cv_id, perm):
+    if inner_cv_id=="1": # random
+        inner_cv = KFold(n_splits=5, shuffle=True, random_state=perm)
+    elif inner_cv_id =="2": # leave one group out
+        inner_cv = KFold(n_splits=5, shuffle=True, random_state = perm)
+    elif inner_cv_id =='3':
+        inner_cv = GroupKFold(n_splits=5)
+    elif inner_cv_id == "4":
+        inner_cv = KFold(n_splits=5, shuffle=True,random_state=perm)
+    elif inner_cv_id == "5":
+        inner_cv = GroupShuffleSplit(train_size = 0.8)
+    return inner_cv
     
-def run_regression(x, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null):
+def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null):
 
     if atlas =='lesionload_m1':
         X=np.array(x).reshape(-1,1)
@@ -716,8 +743,11 @@ def run_regression(x, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var,
         X = prepare_data(x) 
         
     logprint(X.shape)
+    
+    outer_cv = create_outer_cv(outer_cv_id)
+    
     outer_cv_splits = outer_cv.get_n_splits(X, Y, group)
- 
+    
     models = np.zeros((len(models_tested), outer_cv_splits), dtype=object)
     explained_var  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
     variable_importance  = []
@@ -731,7 +761,8 @@ def run_regression(x, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var,
         activation_weights=[]
         
         for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X, Y, group)):
-
+            
+            inner_cv = create_inner_cv(inner_cv_id,n)
             logprint("------ Outer Fold: {}/{} ------".format(cv_fold + 1, outer_cv_splits))
             
             X_train, X_test = X[train_id], X[test_id]
@@ -765,9 +796,10 @@ def run_regression(x, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var,
                 
                 expl=explained_variance_score(y_test, y_pred)
                 filename = results_path + '/{}_{}_{}_{}_{}_crossval{}_perm{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
+                filename_plot = results_path + '/figures/true_pred/{}_{}_{}_{}_{}_crossval{}_perm{}_outerfold{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n, cv_fold)
 
-                save_plots_true_pred(y_test,y_pred,filename, np_pearson_cor(y_test,y_pred)[0] )
-
+                save_plots_true_pred(y_test,y_pred,results_path,filename_plot, np_pearson_cor(y_test,y_pred)[0] )
+                
                 variable_importance.append(mdl.named_steps[mdl_label].coef_)
                 correlations[mdl_idx, cv_fold] = np_pearson_cor(y_test,y_pred)[0]
                 
@@ -797,7 +829,7 @@ def run_regression(x, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var,
         np.save(os.path.join(results_path, filename + "_variable_impts.npy"), variable_importance)
         np.save(os.path.join(results_path, filename + "_test_group_sizes.npy"), size_testgroup)
 
-def run_regression_ensemble(X1, C, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null):
+def run_regression_ensemble(X1, C, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null):
     X2 = C
     
     logprint('\nRunning ensemble model!')
@@ -810,7 +842,8 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv, outer_cv, models_tested, 
         X1 = prepare_data(X1) 
         
     logprint(X1.shape)
-    
+    outer_cv = create_outer_cv(outer_cv_id)
+
     outer_cv_splits = outer_cv.get_n_splits(X1, Y, group)
     
     models = np.zeros((len(models_tested), outer_cv_splits), dtype=object)
@@ -831,6 +864,7 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv, outer_cv, models_tested, 
         logprint('\n\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ PERMUTATION: {}/{} ~ ~ ~ ~ ~ ~ ~ ~ ~ \n\n'.format(n, nperms))
         
         for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X1, Y, group)):
+            inner_cv = create_inner_cv(inner_cv_id,n)
 
             logprint("------ Outer Fold: {}/{} ------".format(cv_fold + 1, outer_cv_splits))
             
@@ -869,7 +903,7 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv, outer_cv, models_tested, 
             expl=explained_variance_score(y_test, avg_pred)
             filename = results_path + '/{}_{}_{}_{}_{}_crossval{}_perm{}_ensemble'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
 
-            save_plots_true_pred(y_test,avg_pred,filename, np_pearson_cor(y_test,avg_pred)[0] )
+            save_plots_true_pred(y_test,avg_pred,results_path, filename, np_pearson_cor(y_test,avg_pred)[0] )
 
             #variable_importance.append(mdl.named_steps[mdl_label].coef_)
             correlations_ensemble[mdl_idx, cv_fold] = np_pearson_cor(y_test,avg_pred)[0]
@@ -924,112 +958,165 @@ def set_up_and_run_model(crossval, model_tested,lesionload,lesionload_type, X, Y
     if crossval == '1':
         logprint('1. Outer CV: Random partition fixed fold sizes, Inner CV: Random partition fixed fold sizes')
         # is random when random_state not specified 
-        outer_cv = KFold(n_splits=5, shuffle=True)
-        inner_cv = KFold(n_splits=5, shuffle=True)
-
+        #outer_cv = KFold(n_splits=5, shuffle=True)
+        outer_cv_id ='1'
+        #inner_cv = KFold(n_splits=5, shuffle=True)
+        inner_cv_id = '1'
     elif crossval == '2':
-        logprint('2. Outer CV: Leave-one-site-out, Inner CV:  Leave-one-site-out')
-        outer_cv = LeaveOneGroupOut()
-        inner_cv = LeaveOneGroupOut()
+        logprint('2. Outer CV: Leave-one-site-out, Inner CV: Random partition fixed fold sizes')
+        #outer_cv = LeaveOneGroupOut()
+        #inner_cv = KFold(n_splits=5, shuffle=True)
+        outer_cv_id = '2'
+        inner_cv_id ='2'
 
     elif crossval == '3':
         logprint('3. Outer CV: Group K-fold, Inner CV: Group K-fold')
-        outer_cv = GroupKFold(n_splits=5)
-        inner_cv = GroupKFold(n_splits=5)
+        #outer_cv = GroupKFold(n_splits=5)
+        #inner_cv = GroupKFold(n_splits=5)
+        outer_cv_id ='3'
+        inner_cv_id = '3'
         
     elif crossval == '4':
-        logprint('4 Outer CV: Shuffle, Inner CV:  Shuffle')
-        outer_cv = ShuffleSplit(n_splits=5)
-        inner_cv = ShuffleSplit(n_splits=5)
+        logprint('4 Outer CV: GroupShuffleSplit, Inner CV:  Random partition fixed fold sizes')
+        #outer_cv = GroupShuffleSplit(train_size=.8)
+        #inner_cv = KFold(n_splits=5, shuffle=True)
+        outer_cv_id = '4'
+        inner_cv_id = '4'
         
     elif crossval == '5':
         logprint('5 Outer CV: GroupShuffleSplit, Inner CV:  GroupShuffleSplit')
-        outer_cv = GroupShuffleSplit(train_size=.8)
-        inner_cv = GroupShuffleSplit(train_size = 0.8)
+        #outer_cv = GroupShuffleSplit(train_size=.8)
+        #inner_cv = GroupShuffleSplit(train_size = 0.8)
+        outer_cv_id = '5'
+        inner_cv_id = '5'
     
     if y_var == 'normed_motor_scores':
         if ensemble == 'none':
             if lesionload_type == 'none':
                 if model_tested[0]=='ridge':
-                    run_regression(X, Y, site, inner_cv,outer_cv,model_tested, atlas, y_var, chaco_type, subset,save_models, results_path,crossval, nperms,null)
+                    run_regression(X, Y, site, inner_cv_id,outer_cv_id,model_tested, atlas, y_var, chaco_type, subset,save_models, results_path,crossval, nperms,null)
             elif lesionload_type =='M1':
                 atlas = 'lesionload_m1'
                 model_tested = ['linear_regression']
                 chaco_type ='NA'
-                run_regression(lesionload, Y, site, inner_cv,outer_cv,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
+                run_regression(lesionload, Y, site, inner_cv_id,outer_cv_id,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
             elif lesionload_type =='all':
                 atlas = 'lesionload_all'
                 model_tested= ['ridge_nofeatselect']
                 chaco_type ='NA'
-                run_regression(lesionload, Y, site, inner_cv,outer_cv,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
+                run_regression(lesionload, Y, site, inner_cv_id,outer_cv_id,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
         elif ensemble == 'demog':
             if lesionload_type == 'none':
                 if model_tested[0]=='ridge':
-                    run_regression_ensemble(X, C, Y, site, inner_cv,outer_cv,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
+                    run_regression_ensemble(X, C, Y, site, inner_cv_id,outer_cv_id,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
             elif lesionload_type =='M1':
                 atlas = 'lesionload_m1'
                 model_tested = ['linear_regression']
                 chaco_type = 'NA'
-                run_regression_ensemble(lesionload, C, Y, site, inner_cv,outer_cv,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
+                run_regression_ensemble(lesionload, C, Y, site, inner_cv_id,outer_cv_id,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
             elif lesionload_type =='all':
                 atlas = 'lesionload_all'
                 model_tested= ['ridge_nofeatselect']
                 chaco_type ='NA'
-                run_regression_ensemble(lesionload, C, Y, site, inner_cv,outer_cv,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
+                run_regression_ensemble(lesionload, C, Y, site, inner_cv_id,outer_cv_id,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null)
           
-def save_model_outputs(results_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,lesionload_type, ensemble):
+def save_model_outputs(results_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,lesionload_type, ensemble,shape_2):
 
     mdl_label = model_tested[0]
     rootname = results_path + '/{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval)
+    rootname_truepred = results_path + '/figures/true_pred/{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval)
+
+    r2scores_allperms=np.zeros(shape=(nperms, shape_2))
+    correlation_allperms=np.zeros(shape=(nperms, shape_2))
     
-    r2scores_allperms=np.zeros(shape=(nperms, 5))
-    correlation_allperms=np.zeros(shape=(nperms, 5))
+    # if leave-one-site-out, make a figure showing the distribution of predicted scores across permutations.
+    if crossval == '2': # leave one site out
+        # have to do this here, i guess.
+        for site in range(0,shape_2):
+            # oh jeez
+            site_size = np.load(rootname_truepred +'_perm0_outerfold'+str(site) +'_true.npy', allow_pickle=True).shape[0]
+            true_array = np.zeros(shape=(site_size,nperms))
+            pred_array = np.zeros(shape=(site_size,nperms))
+
+            for n in range(0,nperms): 
+                true_array[:,n]=np.load(rootname_truepred +'_perm'+ str(n) + '_outerfold'+str(site) +'_true.npy', allow_pickle=True)
+                
+                pred_array[:,n]=np.load(rootname_truepred +'_perm'+ str(n) + '_outerfold'+str(site) +'_pred.npy', allow_pickle=True)
+            np.savetxt(rootname_truepred+ '_outerfold'+str(site) +'_true_allperms.txt', true_array)
+            np.savetxt(rootname_truepred+ '_outerfold'+str(site) +'_pred_allperms.txt', pred_array)
+
+            #print(pred_array.shape)
+            #create_site_truepred_figures(true_array, pred_array, site_size,results_path, site)
+
+                
     
-    for n in range(0, nperms):
+    for n in range(0, nperms): # perms
         if ensemble =='none':
-            for n in range(0, nperms):
-                r2scores=np.load(rootname +'_perm'+ str(n) + '_scores.npy',allow_pickle=True)
-                correlation = np.load(rootname +'_perm'+ str(n) +'_correlations.npy',allow_pickle=True)
-                varimpts=np.load(rootname +'_perm'+ str(n) + '_activation_weights.npy',allow_pickle=True)
-                mdl=np.load(rootname +'_perm'+ str(n) + '_model.npy',allow_pickle=True)
+            r2scores=np.load(rootname +'_perm'+ str(n) + '_scores.npy',allow_pickle=True)
+            correlation = np.load(rootname +'_perm'+ str(n) +'_correlations.npy',allow_pickle=True)
+            varimpts=np.load(rootname +'_perm'+ str(n) + '_activation_weights.npy',allow_pickle=True)
+            mdl=np.load(rootname +'_perm'+ str(n) + '_model.npy',allow_pickle=True)
+            
+            r2scores_allperms[n,] = r2scores
+            correlation_allperms[n,] = correlation
+
+            if mdl_label == 'ridge':
+                alphas=[]
+                feats=[]
                 
-                r2scores_allperms[n,] = r2scores
-                correlation_allperms[n,] = correlation
+                for a in range(0,5):
+                    alphas.append(mdl[0][a][mdl_label].alpha)
+                    feats.append(mdl[0][a]['featselect'].k) 
 
-                if mdl_label == 'ridge':
-                    alphas=[]
-                    feats=[]
-                    
-                    for a in range(0,5):
-                        alphas.append(mdl[0][a][mdl_label].alpha)
-                        feats.append(mdl[0][a]['featselect'].k) 
+    if ensemble =='demog':
+        
+        r2scores_ensemble=np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_scores.npy',allow_pickle=True)
+        correlation_ensemble = np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_correlations_ensemble.npy',allow_pickle=True)
+        #varimpts_ensemble=np.load(rootname +'_perm'+ str(n) +  '_ensemble'+ '_activation_weights.npy',allow_pickle=True)
+        mdl=np.load(rootname +'_perm'+ str(n) + '_ensemble'+  '_model.npy',allow_pickle=True)
+        r2scores_allperms[n,] = r2scores_ensemble
+        correlation_allperms[n,] = correlation_ensemble
 
-        if ensemble =='demog':
-            for n in range(0, nperms):
-                
-                    r2scores_ensemble=np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_scores.npy',allow_pickle=True)
-                    correlation_ensemble = np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_correlations_ensemble.npy',allow_pickle=True)
-                    #varimpts_ensemble=np.load(rootname +'_perm'+ str(n) +  '_ensemble'+ '_activation_weights.npy',allow_pickle=True)
-                    mdl=np.load(rootname +'_perm'+ str(n) + '_ensemble'+  '_model.npy',allow_pickle=True)
-                    r2scores_allperms[n,] = r2scores_ensemble
-                    correlation_allperms[n,] = correlation_ensemble
+        # logprint('varimpts dim: {}'.format(varimpts_ensemble.shape))
 
-                   # logprint('varimpts dim: {}'.format(varimpts_ensemble.shape))
-
-                    if mdl_label == 'ridge':
-                        alphas=[]
-                        feats=[]
-                        
-                        for a in range(0,5):
-                            alphas.append(mdl[0][a][mdl_label].alpha)
-                            feats.append(mdl[0][a]['featselect'].k) 
+        if mdl_label == 'ridge':
+            alphas=[]
+            feats=[]
+            
+            for a in range(0,5):
+                alphas.append(mdl[0][a][mdl_label].alpha)
+                feats.append(mdl[0][a]['featselect'].k) 
                             
     return r2scores_allperms, correlation_allperms
 
 def logprint(string):
     print(string)
     logging.info(string)
+ 
+ 
+def create_site_truepred_figures(true, pred,site_size,results_path,site):
+    font = {'family' : 'normal',
+            'size'   : 15}
+    fig, ax1 = plt.subplots(figsize =(10, 10))
+  
+    meanpred = np.mean(pred,axis=1)
+    meanpred_rep = np.repeat(np.reshape(meanpred, [site_size, 1]), 8, axis=1)
+    meantrue = np.mean(true, axis=1)
     
+    err = np.mean(np.abs(pred - meanpred_rep), axis=1) # MAE
+    
+    print(err)
+    plt.scatter(meantrue, meanpred)
+    plt.errorbar(meantrue,meanpred,yerr=err, linestyle="none")
+    ax1.plot([0,1],[0,1],'k--',transform=ax1.transAxes)
+    plt.ylim([0, 1])
+    plt.xlim([0, 1])
+
+
+    #plt.scatter(np.mean(true_, pred,)
+    #plt.errorbar(a,b,yerr=c, linestyle="None")
+    plt.savefig(results_path + '/figures/' + 'truepredfig_site_' + str(site)+'.png')
+
 def create_performance_figures(r2_scores, correlations,label, results_path):
     font = {'family' : 'normal',
             'size'   : 22}
@@ -1037,9 +1124,8 @@ def create_performance_figures(r2_scores, correlations,label, results_path):
     matplotlib.rc('font', **font)
     
     fig, (ax1, ax2) = plt.subplots(ncols=2, figsize =(20, 20))
-    fig.tight_layout()
     plt.subplots_adjust(bottom=0.6)
-    
+    print(r2_scores.shape)
     ax1.boxplot(np.transpose(r2_scores))
     ax1.set_ylim([0, 1])
     ax1.set_ylabel('{}'.format('$R^2$'))
@@ -1053,7 +1139,27 @@ def create_performance_figures(r2_scores, correlations,label, results_path):
     ax2.xaxis.set_ticks([x for x in range(1,len(label)+1)])
     ax2.xaxis.set_ticklabels(label, rotation=90)
     
-    print([results_path + 'boxplots' + '.png'])
+    print([results_path + '/boxplots' + '.png'])
     plt.savefig(results_path + '/figures/' + 'boxplots' + '.png')
-
     
+    
+
+def create_dist_figures(r2_scores, correlations,label, results_path):
+    font = {'family' : 'normal',
+            'size'   : 22}
+
+    matplotlib.rc('font', **font)
+    
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize =(20, 20))
+    plt.subplots_adjust(bottom=0.6)
+    
+   # for site in range(0, r2_scores.shape[1]):
+        #print(r2_scores[:,site].shape)
+    #ax1.boxplot(np.transpose(r2_scores))
+    #ax1.set_ylim([0, 1])
+    #ax1.set_ylabel('{}'.format('$R^2$'))
+    #ax1.xaxis.set_ticks([x for x in range(1,len(label)+1)])
+    #ax1.xaxis.set_ticklabels(label, rotation=90)
+    
+    #print([results_path + '_eachsite_' + '.png'])
+    #plt.savefig(results_path + '/figures/' + 'boxplots' + '.png')

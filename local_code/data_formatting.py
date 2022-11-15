@@ -11,8 +11,6 @@ import re
 from sklearn import preprocessing 
 from sklearn.model_selection import LeaveOneGroupOut
 
-LESIONMASK_PATH = os.path.join("/home/ubuntu/enigma/lesionmasks/")  # Set this path accordingly
-
 def prepare_data(X):
     '''Clean X-data (remove zero-value input variables)'''
 
@@ -27,7 +25,7 @@ def access_elements(nums, list_index):
     result = [nums[i] for i in list_index]
     return result
 
-def find_missing_scans(ids, parc, chacovar):
+def find_missing_scans(ids, parc, chacovar, LESIONMASK_PATH):
     # returns list of files without missing scans, as well as ids of missing subjects
     files_in_dir = glob.glob("{}{}".format(LESIONMASK_PATH,'*_ses-1_space-MNI152_desc-T1-lesion_mask_MNI_1mm_nemo_output_sdstream_{}_{}_mean.pkl'.format(chacovar,parc)))
     list_of_files = LESIONMASK_PATH + ids + ['_ses-1_space-MNI152_desc-T1-lesion_mask_MNI_1mm_nemo_output_sdstream_{}_{}_mean.pkl'.format(chacovar,parc)]
@@ -128,7 +126,7 @@ def get_chronicity_subset(df, subset_data):
 
     return df_final, ids
 
-def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None, ll=None):
+def create_data_set(csv_path=None,lesionmask_path=None, atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None, ll=None):
     """
     Formats ENIGMA data (ChaCo scores, demographic & clinical info) for classification or regression.
 
@@ -150,7 +148,7 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
         If specified, remove subjs from final list that dont have demographic scores (sex, age, lesioned hem)
     :return: X, C, y, lesionload, sites
     """
-    
+    LESIONMASK_PATH = lesionmask_path
     df = load_csv(csv_path)
     
     if atlas:
@@ -211,16 +209,16 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
     #print(df_final.shape)
           
     # find subjects who have motor scores but are missing scans.
-    ids_fullpaths_nonemissing, missinglist = find_missing_scans(ids, parc, chacovar)
-    df_final = remove_missing_scans(df_final,missinglist)  
+    #ids_fullpaths_nonemissing, missinglist = find_missing_scans(ids, parc, chacovar)
+    #df_final = remove_missing_scans(df_final,missinglist)  
 
     #print('DF SHAPE AFTER REMOVAL OF MISSING SCANS:')
     #print(df_final.shape)
     
     print('Loading data for atlas: {}, ChaCo scores: {}, subset: {}'.format(atlas, chacovar,subset_data))
     # load X data
-    X = load_chaco_data(ids_fullpaths_nonemissing, chacovar)
-    X = np.array(X)
+    #X = load_chaco_data(ids_fullpaths_nonemissing, chacovar)
+    #X = np.array(X)
     
     if verbose and isinstance(covariates, str):
         print('Extracting {} from atlas {} \n'.format(str(covariates_list), atlas))
@@ -243,13 +241,16 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
     # load lesionload
 
     llvars = ['M1_CST', 'PMd_CST', 'PMv_CST','S1_CST','SMA_CST','preSMA_CST']
+    print('testttt')
     if ll=='all':
         lesion_load = df_final.loc[:,llvars]
     elif ll=='M1':
         lesion_load=df_final.loc[:,'M1_CST']
+    elif ll=='none':
+        lesion_load=[]
     
-    print('Final size of data: \n X_data: {} by {} \n Y_data: length {} \n'.format(X.shape[0], X.shape[1], y.shape[0]))
-    return X, y, C, lesion_load, site
+    #print('Final size of data: \n X_data: {} by {} \n Y_data: length {} \n'.format(X.shape[0], X.shape[1], y.shape[0]))
+    return  y, C, lesion_load, site
 
 
 

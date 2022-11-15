@@ -6,12 +6,10 @@ import os
 import pickle
 from helper_functions import *
 import glob
-import re
 #import label encoder
 from sklearn import preprocessing 
 from sklearn.model_selection import LeaveOneGroupOut
-
-LESIONMASK_PATH = os.path.join("/home/ubuntu/enigma/lesionmasks/")  # Set this path accordingly
+import logging
 
 def prepare_data(X):
     '''Clean X-data (remove zero-value input variables)'''
@@ -27,7 +25,7 @@ def access_elements(nums, list_index):
     result = [nums[i] for i in list_index]
     return result
 
-def find_missing_scans(ids, parc, chacovar):
+def find_missing_scans(ids, parc, chacovar,LESIONMASK_PATH):
     # returns list of files without missing scans, as well as ids of missing subjects
     files_in_dir = glob.glob("{}{}".format(LESIONMASK_PATH,'*_ses-1_space-MNI152_desc-T1-lesion_mask_MNI_1mm_nemo_output_sdstream_{}_{}_mean.pkl'.format(chacovar,parc)))
     list_of_files = LESIONMASK_PATH + ids + ['_ses-1_space-MNI152_desc-T1-lesion_mask_MNI_1mm_nemo_output_sdstream_{}_{}_mean.pkl'.format(chacovar,parc)]
@@ -39,7 +37,6 @@ def find_missing_scans(ids, parc, chacovar):
     missinglist=[]
     for missing in missing_id:
         missinglist.append(missing[len(LESIONMASK_PATH):44]) # find subid of subject(s) with missing scans
-    
     
     return ids_fullpaths_nonemissing, missinglist
 
@@ -67,38 +64,38 @@ def load_chaco_data(ids,chacovar):
     return X
             
 def remove_missing_motor(df):
-    print('Removing subjects who do not have motor scores.')
-    print('---- Original N = {}'.format(df.shape[0]))
+    logging.info('Removing subjects who do not have motor scores.')
+    logging.info('---- Original N = {}'.format(df.shape[0]))
 
     idx=np.isnan(df['NORMED_MOTOR'])
     df=df[~idx]
-    print('---- New N = {}'.format(df.shape[0]))
-    print('\n')
+    logging.info('---- New N = {}'.format(df.shape[0]))
+    logging.info('\n')
     return df 
 
 def remove_missing_scans(df, missinglist):
-    print('Removing subjects who do not have lesion masks.')
-    print('---- Original N = {}'.format(df.shape[0]))
+    logging.info('Removing subjects who do not have lesion masks.')
+    logging.info('---- Original N = {}'.format(df.shape[0]))
 
     for missingscan in missinglist:
         df = df[df['BIDS_ID'] != missingscan] 
 
-    print('---- New N = {}'.format(df.shape[0]))
-    print('\n')
+    logging.info('---- New N = {}'.format(df.shape[0]))
+    logging.info('\n')
     return df
 
 def remove_missing_demographics(df,covariates):
     missing_ids = np.zeros(df.shape[0])
-    print('Removing subjects that do not have any of: {}'.format(covariates))
-    print('---- Original N = {}'.format(df.shape[0]))
+    logging.info('Removing subjects that do not have any of: {}'.format(covariates))
+    logging.info('---- Original N = {}'.format(df.shape[0]))
     for cov in covariates:
         
         missing_ids = np.isnan(df[cov]) + missing_ids
         
     missing_ids = missing_ids>0
     df=df[~missing_ids]
-    print('---- New N = {}'.format(df.shape[0]))
-    print('\n')
+    logging.info('---- New N = {}'.format(df.shape[0]))
+    logging.info('\n')
     return df
 
 def load_csv(csv_path):
@@ -106,8 +103,8 @@ def load_csv(csv_path):
     return df
 
 def get_chronicity_subset(df, subset_data):
-    print('Removing subjects that are not {} stroke subjects'.format(subset_data))
-    print('---- Original N = {}'.format(df.shape[0]))
+    logging.info('Removing subjects that are not {} stroke subjects'.format(subset_data))
+    logging.info('---- Original N = {}'.format(df.shape[0]))
     if subset_data == 'chronic':
             df_chronic = df[df['CHRONICITY']==180]
             df_chronic = df_chronic.reset_index(drop=True)
@@ -121,12 +118,12 @@ def get_chronicity_subset(df, subset_data):
     else:
         ids = df['BIDS_ID']
         df_final = df
-    print('---- New N = {}'.format(df_final.shape[0]))
-    print('\n')
+    logging.info('---- New N = {}'.format(df_final.shape[0]))
+    logging.info('\n')
 
     return df_final, ids
 
-def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None, ll=None):
+def create_data_set(csv_path=None, lesionmask_path = None, atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None, ll=None):
     """
     Formats ENIGMA data (ChaCo scores, demographic & clinical info) for classification or regression.
 
@@ -148,7 +145,7 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
         If specified, remove subjs from final list that dont have demographic scores (sex, age, lesioned hem)
     :return: X, C, y, lesionload, sites
     """
-    
+    LESIONMASK_PATH = lesionmask_path
     df = load_csv(csv_path)
     
     if atlas:
@@ -171,13 +168,17 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
     else:
         y_var = 'normed_motor_scores'
 
+            
+    if chacovar == 'NA': # not loading chaco scores, but all subjects with lesio masks will have chacoscores.
+        chacovar = 'chacovol'
+        parc = 'fs86subj'
         
-    #print('FULL DF SHAPE')
-    #print(df.shape)
+    #logging.info('FULL DF SHAPE')
+    #logging.info(df.shape)
     # format data frame, remove missing data
     df = remove_missing_motor(df)
-    #print('DF AFTER REMOVING MISSING MOTOR SCORES')
-    #print(df.shape)
+    #logging.info('DF AFTER REMOVING MISSING MOTOR SCORES')
+    #logging.info(df.shape)
     
     # covariate extraction (age, sex, site, etc) 
     
@@ -207,29 +208,32 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
     if remove_demog:
         df = remove_missing_demographics(df,covariates_list)   
     
-    #print('DF SHAPE AFTER REMOVAL OF MISSING DEMOGRAPHICS:')
-    #print(df.shape)
+    #logging.info('DF SHAPE AFTER REMOVAL OF MISSING DEMOGRAPHICS:')
+    #logging.info(df.shape)
     ids=df['BIDS_ID']
     
     df_final, ids = get_chronicity_subset(df, subset_data)
    
-    #print('DF SHAPE AFTER REMOVAL OF ACUTE:')
-    #print(df_final.shape)
-          
+    #logging.info('DF SHAPE AFTER REMOVAL OF ACUTE:')
+    #logging.info(df_final.shape)
+
+        
     # find subjects who have motor scores but are missing scans.
-    ids_fullpaths_nonemissing, missinglist = find_missing_scans(ids, parc, chacovar)
+
+    ids_fullpaths_nonemissing, missinglist = find_missing_scans(ids, parc, chacovar,LESIONMASK_PATH)
     df_final = remove_missing_scans(df_final,missinglist)  
 
-    #print('DF SHAPE AFTER REMOVAL OF MISSING SCANS:')
-    #print(df_final.shape)
+    #logging.info('DF SHAPE AFTER REMOVAL OF MISSING SCANS:')
+    #logging.info(df_final.shape)
     
-    print('Loading data for atlas: {}, ChaCo scores: {}, subset: {}'.format(atlas, chacovar,subset_data))
+    logging.info('Loading data for atlas: {}, ChaCo scores: {}, subset: {}'.format(atlas, chacovar,subset_data))
     # load X data
+    
     X = load_chaco_data(ids_fullpaths_nonemissing, chacovar)
     X = np.array(X)
     
     if verbose and isinstance(covariates, str):
-        print('Extracting {} from atlas {} \n'.format(str(covariates_list), atlas))
+        logging.info('Extracting {} from atlas {} \n'.format(str(covariates_list), atlas))
         
     C = df_final.loc[:,covariates_list].values
     site = df_final["SITE"]
@@ -249,8 +253,7 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
     # load lesionload
 
     llvars = ['M1_CST', 'PMd_CST', 'PMv_CST','S1_CST','SMA_CST','preSMA_CST']
-    print('lesion load: ')
-    print(ll)
+    logging.info('lesion load: ')
     if ll=='all':
         lesion_load = df_final.loc[:,llvars]
     elif ll=='M1':
@@ -258,7 +261,7 @@ def create_data_set(csv_path=None, atlas=None, covariates=None, verbose=False, y
     elif ll=='none':
         lesion_load=[]
     
-    print('Final size of data: \n X_data: {} by {} \n Y_data: length {} \n'.format(X.shape[0], X.shape[1], y.shape[0]))
+    logging.info('Final size of data: X_data: {} by {}, Y_data: length {} \n'.format(X.shape[0], X.shape[1], y.shape[0]))
     return X, y, C, lesion_load, site
 
 
