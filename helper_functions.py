@@ -1117,6 +1117,39 @@ def create_site_truepred_figures(true, pred,site_size,results_path,site):
     #plt.errorbar(a,b,yerr=c, linestyle="None")
     plt.savefig(results_path + '/figures/' + 'truepredfig_site_' + str(site)+'.png')
 
+def create_performance_figures_loo(r2_scores, correlations,label, results_path):
+    font = {'family' : 'normal',
+            'size'   : 22}
+
+    matplotlib.rc('font', **font)
+    
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize =(20, 20))
+    plt.subplots_adjust(bottom=0.6)
+
+    ax1.boxplot(np.transpose(r2_scores))
+    ax1.set_ylim([-2, 2])
+    ax1.set_ylabel('{}'.format('$R^2$'))
+    ax1.xaxis.set_ticks([x for x in range(1,len(label)+1)])
+    ax1.xaxis.set_ticklabels(label, rotation=90)
+    
+    correlations = np.transpose(correlations)
+    
+    # remove data points that are nan or from a site with one subject
+    mask = np.logical_and(~np.isnan(correlations),correlations<0.99)
+    filtered_data = [d[m] for d, m in zip(correlations.T, mask.T)]
+    
+    ax2.boxplot(filtered_data)
+    ax2.set_ylim([-2, 2])
+    ax2.set_ylabel('Correlation')
+    
+    print([x for x in range(1,len(label)+1)])
+    
+    ax2.xaxis.set_ticks([x for x in range(1,len(label)+1)])
+    ax2.xaxis.set_ticklabels(label, rotation=90)
+    
+    print([results_path + '/figures/boxplots' + '.png'])
+    plt.savefig(results_path + '/figures/' + 'boxplots' + '.png')
+    
 def create_performance_figures(r2_scores, correlations,label, results_path):
     font = {'family' : 'normal',
             'size'   : 22}
@@ -1125,41 +1158,21 @@ def create_performance_figures(r2_scores, correlations,label, results_path):
     
     fig, (ax1, ax2) = plt.subplots(ncols=2, figsize =(20, 20))
     plt.subplots_adjust(bottom=0.6)
-    print(r2_scores.shape)
-    ax1.boxplot(np.transpose(r2_scores))
+    
+    ax1.boxplot(r2_scores)
     ax1.set_ylim([0, 1])
     ax1.set_ylabel('{}'.format('$R^2$'))
     ax1.xaxis.set_ticks([x for x in range(1,len(label)+1)])
     ax1.xaxis.set_ticklabels(label, rotation=90)
 
-    ax2.boxplot(np.transpose(correlations))
+    ax2.boxplot(correlations)
     ax2.set_ylim([0, 1])
     ax2.set_ylabel('Correlation')
+    
     print([x for x in range(1,len(label)+1)])
+    
     ax2.xaxis.set_ticks([x for x in range(1,len(label)+1)])
     ax2.xaxis.set_ticklabels(label, rotation=90)
     
-    print([results_path + '/boxplots' + '.png'])
+    print([results_path + '/figures/boxplots' + '.png'])
     plt.savefig(results_path + '/figures/' + 'boxplots' + '.png')
-    
-    
-
-def create_dist_figures(r2_scores, correlations,label, results_path):
-    font = {'family' : 'normal',
-            'size'   : 22}
-
-    matplotlib.rc('font', **font)
-    
-    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize =(20, 20))
-    plt.subplots_adjust(bottom=0.6)
-    
-   # for site in range(0, r2_scores.shape[1]):
-        #print(r2_scores[:,site].shape)
-    #ax1.boxplot(np.transpose(r2_scores))
-    #ax1.set_ylim([0, 1])
-    #ax1.set_ylabel('{}'.format('$R^2$'))
-    #ax1.xaxis.set_ticks([x for x in range(1,len(label)+1)])
-    #ax1.xaxis.set_ticklabels(label, rotation=90)
-    
-    #print([results_path + '_eachsite_' + '.png'])
-    #plt.savefig(results_path + '/figures/' + 'boxplots' + '.png')
