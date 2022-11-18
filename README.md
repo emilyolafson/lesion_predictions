@@ -14,9 +14,10 @@ This repository contains code to predict chronic motor scores from lesion data.
 Calculate the lesion load on the corticospinal tract originating from ipsilesional M1. 
 
 # 6-tract CST lesion load
+![SMATT_pic](figures/smatt_template.png)
 Calcualte the lesion load on all corticospinal tracts originating from M1 (primary motor cortex), S1 (sensorimotor cortex), SMA (supplementary motor area), pre-SMA (pre-supplementary motor area), ventral premotor cortex (PMv), and dorsal premotor cortex (PMd)
 
-Template: {Sensorimotor Area Tract Template (SMATT)](https://pubmed.ncbi.nlm.nih.gov/28334314/) 
+Template: [Sensorimotor Area Tract Template (SMATT)](https://pubmed.ncbi.nlm.nih.gov/28334314/) 
 Code:
 
 - MATLAB: SMATT_lesion_load.m
