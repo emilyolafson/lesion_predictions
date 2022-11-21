@@ -1,4 +1,3 @@
-![nemo_pic](figures/NetworkModificationTool.png)
 
 This repository contains code to predict chronic motor scores from lesion data.
 
@@ -29,5 +28,6 @@ Code:
 - python: SMATT_lesion_load.ipynb (uses nibabel)
 
 # Estimate structural disconnection
+![nemo_pic](figures/NetworkModificationTool.png)
 The Network Modification Tool [NeMo 2.1](https://kuceyeski-wcm-web.s3.us-east-1.amazonaws.com/upload.html) can be used to estimate regional or pairwise change in connectivity (ChaCo) scores, given a binary lesion mask.
 

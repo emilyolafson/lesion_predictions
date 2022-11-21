@@ -1,4 +1,4 @@
-% calculate the overlap between binarized sensorimotor area tracts and binary lesion mask.
+% calculate the overlap between sensorimotor area tracts and binary lesion mask.
 
 %% add FSL to path
 % If you have installed FSL somewhere
@@ -14,7 +14,7 @@ clear fsldir fsldirmpath;
 %% load  atlas
 % calculate ipsilesional CST lesion load using multiple motor regions
 df=readtable('~/GIT/ENIGMA/data/Behaviour_Information_ALL_April7_2022_sorted.csv')
-sub_left=df.LESIONED_HEMISPHERE==1 
+sub_left=df.LESIONED_HEMISPHERE
 
 % load SMATT
 smatt_files = dir('/Users/emilyolafson/GIT/ENIGMA/data/lesion_load/smatt_all_motor_rois/smatt-template/*');
@@ -46,7 +46,7 @@ for sub = 1:height(df)
     try
     lesion = read_avw([lesion_folder, df.BIDS_ID{sub},'.nii.gz']);
     lesion = logical(lesion);
-        if sub_left(sub)==1
+        if sub_left(sub)==1 % left
             smatt_ll.M1_CST(sub)=sum(LM1_CST.*lesion,'all');
             smatt_ll.PMd_CST(sub)=sum(LPMd_CST.*lesion,'all');
             smatt_ll.PMv_CST(sub)=sum(LPMv_CST.*lesion,'all');
@@ -54,7 +54,7 @@ for sub = 1:height(df)
             smatt_ll.SMA_CST(sub)=sum(LSMA_CST.*lesion,'all');
             smatt_ll.preSMA_CST(sub)=sum(LpreSMA_CST.*lesion,'all');
         end
-        if sub_left(sub)==0
+        if sub_left(sub)==2 % right
             smatt_ll.M1_CST(sub)=sum(RM1_CST.*lesion,'all');
             smatt_ll.PMd_CST(sub)=sum(RPMd_CST.*lesion,'all');
             smatt_ll.PMv_CST(sub)=sum(RPMv_CST.*lesion,'all');
@@ -62,11 +62,28 @@ for sub = 1:height(df)
             smatt_ll.SMA_CST(sub)=sum(RSMA_CST.*lesion,'all');
             smatt_ll.preSMA_CST(sub)=sum(RpreSMA_CST.*lesion,'all');
         end
+        
+        if sub_left(sub)==3 || sub_left(sub)==4 || sub_left(sub)==5 || sub_left(sub)==6
+            % 3 = bilateral
+            % 4 = brainstem
+            % 5 = cerebellum
+            % 6 = combination of cerebral hemisphere + brainstem/cerebellum
+
+            smatt_ll.M1_CST(sub)=mean(sum(RM1_CST.*lesion,'all'), sum(LM1_CST.*lesion,'all'));
+            smatt_ll.PMd_CST(sub)=mean(sum(RPMd_CST.*lesion,'all'), sum(LPMd_CST.*lesion,'all'));
+            smatt_ll.PMv_CST(sub)=mean(sum(RPMv_CST.*lesion,'all'),sum(LPMv_CST.*lesion,'all'));
+            smatt_ll.S1_CST(sub)=mean(sum(RS1_CST.*lesion,'all'),sum(LS1_CST.*lesion,'all'));
+            smatt_ll.SMA_CST(sub)=mean(sum(RSMA_CST.*lesion,'all'),sum(LSMA_CST.*lesion,'all'));
+            smatt_ll.preSMA_CST(sub)=mean(sum(RpreSMA_CST.*lesion,'all'),sum(LpreSMA_CST.*lesion,'all'));
+        end   
+        
+        
     catch
         disp('Lesion data not found')
         continue
     end
 end
 
+writetable(df,'~/GIT/ENIGMA/data/Behaviour_Information_ALL_April7_2022_sorted_CSTll.csv')
 
 
