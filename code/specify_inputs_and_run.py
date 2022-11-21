@@ -5,8 +5,8 @@ reload(run_regression_models)
 from run_regression_models import run_models
 
 
-run_analyses = ['1','2','3'] # list of analyses to run (corresponds to analysis folders "analysis_X")
-generate_figs_only = True # whether to run ML models or just generate figures
+run_analyses = ['5'] # list of analyses to run (corresponds to analysis folders "analysis_X")
+generate_figs_only = False # whether to run ML models or just generate figures
 
 
 if set(['1']).issubset(set(run_analyses)):  
@@ -59,3 +59,16 @@ if set(['4']).issubset(set(run_analyses)):
 
         run_models(**kwargs)
 
+if set(['5']).issubset(set(run_analyses)):  
+        kwargs = {'covariates':['AGE', 'SEX', 'DAYS_POST_STROKE'], \
+                'results_path':'/home/ubuntu/enigma/results',\
+                'output_path': '/analysis_5',\
+                'models_tested': ['ridge'],
+                'lesionload_types': [ 'none'], \
+                'crossval_types':['1','4', '5'],\
+                'atlases':['fs86subj', 'shen268'],\
+                'nperms':100, \
+                'figs_only':generate_figs_only,\
+                'ensembles':['none', 'demog']}
+
+        run_models(**kwargs)

@@ -181,7 +181,14 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
                             logprint('crossval type: {}'.format(crossval))
                             
                             if not figs_only:
-                                set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path)
+                            
+                                files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset)
+                                if files_exist:
+                                    output_fullpath = folder
+                                    output_path = output_fullpath.replace(results_path, '')
+
+                                else:
+                                    set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path)
                             
                             # shape_2 = number of outer folds per permutation. pooorly named.
                             if crossval == '2':
@@ -190,9 +197,16 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
                                 shape_2=5
                             
                             [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,lesionload_type,ensemble,shape_2)
+
+                                
+                            if ensemble=='demog':
+                                label =atlas + ' ' + chaco_type + ' ensemble'
+                            else:
+                                label = atlas + ' ' + chaco_type
+                            if len(crossval_types)>1:
+                                label = label + ' ' + crossval
                         
-                            label_plot_one.append(atlas  + ' ' + chaco_type)
-                            
+                            label_plot_one.append(label)
                             if crossval=='2': # leave-one-site-out
                                 r2means_loo=np.append(r2means_loo, np.reshape(np.median(r2all,axis=0), [1, nsites]),axis=0)
                                 corrs_loo=np.append(corrs_loo,np.reshape(np.median(corrall,axis=0), [1, nsites]),axis=0)
@@ -238,18 +252,30 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
                     nsites = np.unique(site).shape[0]
 
                     if not figs_only:
-                        set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path)
+                        files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset)
+                        if files_exist:
+                            output_fullpath = folder
+                            output_path = output_fullpath.replace(results_path, '')
+                        else:
+                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path)
                     
                     if crossval == '2':
                         shape_2 = np.unique(site).shape[0]
                     elif crossval == '5' or crossval == '1' or crossval =='3' or crossval == '4':
                         shape_2 =5
- 
-                        
+                                            
                     [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,lesionload_type,ensemble,shape_2)
-                
-                    label_plot_one.append(atlas)
                     
+                    
+                    if ensemble=='demog':
+                        label =atlas + ' ensemble'
+                    else:
+                        label = atlas
+                    if len(crossval_types)>1:
+                        label = label + ' ' + crossval
+                        
+                        
+                    label_plot_one.append(label)
                     if loo_counter == 0:
                         # have to initialize these down here so we have nsites available for the size
                         r2means_loo=np.empty(shape=(0,nsites))
