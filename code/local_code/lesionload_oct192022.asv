@@ -1,0 +1,66 @@
+% calculate CST lesion load  for each subject
+
+%% flip all subjects with L lesions to the R
+df=readtable('~/GIT/ENIGMA/data/Behaviour_Information_ALL_April7_2022_sorted.csv')
+sub_left=df.LESIONED_HEMISPHERE==1 %
+
+df=df(~isnan(df.CHRONICITY),:)
+df=df(~isnan(df.SEX),:)
+df=df(~isnan(df.AGE),:)
+df=df(~isnan(df.LESIONED_HEMISPHERE),:)
+df=df(~isnan(df.NORMED_MOTOR),:)
+
+df=df(df.CHRONICITY==180,:)
+
+histogram(df.DAYS_POST_STROKE)
+title('Days post stroke')
+
+mean(df.DAYS_POST_STROKE, 'omitnan')
+sum(isnan(df.DAYS_POST_STROKE))
+
+max(df.DAYS_POST_STROKE)
+
+sub_left=df.LESIONED_HEMISPHERE==1 %
+
+%% load CST atlas
+% calculate ipsilesional CST lesion load using multiple motor regions
+df=readtable('~/GIT/ENIGMA/data/Behaviour_Information_ALL_April7_2022_sorted.csv')
+
+% load SMATT
+
+direct = dir('/Users/emilyolafson/GIT/ENIGMA/data/lesion_load/smatt_all_motor_rois/smatt-template/*');
+direct=direct([3:8, 10:15],:)
+
+colnames = {'Left-M1';'Left-PMd';'Left-PMv';'Left-S1';'Left-SMA';'Left-preSMA';'Right-M1';'Right-PMd';'Right-PMv';'Right-S1';'Right-SMA';'Right-preSMA'}
+
+for sub = 1:length(df)
+    if sub_left(sub)==1
+        
+        M1_CST =[direct(1).folder,'/', direct(1).name]
+        
+        df.M1_CST(sub)=1
+        df.PMd_CST(sub)=1
+        df.PMv_CST(sub)=1
+        df.S1_CST(sub)=1
+        df.SMA_CST(sub)=1
+        df.preSMA_CST(sub)=1
+    end
+    if sub_left(sub)==0
+        df.M1_CST(sub)=1
+        df.PMd_CST(sub)=1
+        df.PMv_CST(sub)=1
+        df.S1_CST(sub)=1
+        df.SMA_CST(sub)=1
+        df.preSMA_CST(sub)=1
+    end
+end
+
+
+
+
+
+
+
+
+
+
