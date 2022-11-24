@@ -8,11 +8,13 @@ import helper_functions
 from imp import reload
 import logging
 from matplotlib.transforms import Affine2D
+from helper_functions_figures import *
+import helper_functions_figures
 reload(helper_functions)
 reload(data_formatting)
+reload(helper_functions_figures)
 
-
-def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covariates=None, lesionload_types=None, nperms=None, save_models=None, ensembles=None, atlases=None, chaco_types=None, crossval_types=None, null =None, results_path=None, output_path = None, figs_only=None):
+def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covariates=None, lesionload_types=None, nperms=None, save_models=None, ensembles=None, atlases=None, chaco_types=None, crossval_types=None, null =None, results_path=None, output_path = None, figs_only=None, analysis_id=None, workbench_vis=None,scenesdir= None, wbpath =None,boxplots=None):
     """
     Runs regression models with specified inputs. Saves figures to specified directories.
     :param y_var: str, default ='normed_motor_scores'
@@ -29,7 +31,7 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
     :param crossval_types: list, default = ['1']
     :param null: int, default= -1
     :param results_path: str, default = '/ubunut/home/enigma/results/
-    :param output_path: str, default = '/test_1'
+    :param output_path: str, default = '/test_1' where to save files (npy, not figures)
     :param figs_only: bool, default = False
     
     """
@@ -130,7 +132,10 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
         figs_only = figs_only
     else:
         figs_only = False
-        
+    if analysis_id:
+        analysis_id=analysis_id
+    else:
+        analysis_id=[]
    
     model_tested = models_tested
     if os.path.exists(results_path+output_path + '/'):
@@ -138,13 +143,26 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
     else:
         print('Path {} does not exist. Creating it now.'.format(results_path + output_path))
         os.makedirs(results_path+output_path)
+    
+    if workbench_vis:
+        workbench_vis = workbench_vis
+    else:
+        workbench_vis = False
+    if scenesdir:
+        scenesdir=scenesdir
+    if wbpath:
+        wbpath = wbpath
+    if boxplots:
+        boxplots = boxplots
+
+
 
     print('\n---------------------------------')
     LESIONMASK_PATH = os.path.join("/home/ubuntu/enigma/lesionmasks/")  # Set this path accordingly
     CSV_PATH = os.path.join("/home/ubuntu/enigma/Behaviour_Information_ALL_April7_2022_sorted_CSTll.csv")  # Set this path accordingly
 
     label_plot_one=[]
-    label_plot=[]
+
     r2means=np.empty(shape=(0,nperms))
     corrs=np.empty(shape=(0,nperms))
 
@@ -180,25 +198,24 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
                             logprint('chacotype: {}'.format(chaco_type))
                             logprint('crossval type: {}'.format(crossval))
                             
-                            if not figs_only:
                             
-                                files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset)
-                                if files_exist:
-                                    output_fullpath = folder
-                                    output_path = output_fullpath.replace(results_path, '')
+                            files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset)
+                            if files_exist:
+                                output_fullpath = folder
+                                output_path = output_fullpath.replace(results_path, '')
+                            else:
+                                if not figs_only:
 
-                                else:
                                     set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path)
-                            
-                            # shape_2 = number of outer folds per permutation. pooorly named.
+                        
+                           
                             if crossval == '2':
-                                shape_2 = np.unique(site).shape[0]
+                                n_outer_folds = np.unique(site).shape[0]
                             if crossval == '5' or crossval == '1' or crossval =='3':
-                                shape_2=5
+                                n_outer_folds=5
                             
-                            [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,lesionload_type,ensemble,shape_2)
+                            [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds)
 
-                                
                             if ensemble=='demog':
                                 label =atlas + ' ' + chaco_type + ' ensemble'
                             else:
@@ -208,6 +225,10 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
                         
                             label_plot_one.append(label)
                             if crossval=='2': # leave-one-site-out
+                                if loo_counter == 0:
+                                    # have to initialize these down here so we have nsites available for the size
+                                    r2means_loo=np.empty(shape=(0,nsites))
+                                    corrs_loo=np.empty(shape=(0,nsites))
                                 r2means_loo=np.append(r2means_loo, np.reshape(np.median(r2all,axis=0), [1, nsites]),axis=0)
                                 corrs_loo=np.append(corrs_loo,np.reshape(np.median(corrall,axis=0), [1, nsites]),axis=0)
                                 #kwargs = {'label': label_plot_one, 'r2_scores':r2means_loo, 'correlations':corrs_loo,'results_path': results_path}
@@ -215,6 +236,17 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
                             else:
                                 r2means=np.append(r2means,np.reshape(np.mean(r2all,axis=1),[-1, nperms]),axis=0)
                                 corrs=np.append(corrs,np.reshape(np.mean(corrall,axis=1),[-1, nperms]),axis=0)
+                                
+                            if workbench_vis:
+                                kwargs_workbench_setup = { 'results_path': results_path, 'output_path': output_path, 'analysis_id': analysis_id, \
+                                    'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset, 'atlas':atlas,'model_tested':model_tested,  'crossval':crossval}
+                                print('\nMaking workbench visualization files..\n')
+                                generate_wb_files(**kwargs_workbench_setup)
+                                kwargs_workbench = { 'results_path': results_path, 'analysis_id': analysis_id, 'scenesdir': scenesdir,\
+                                    'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset, 'atlas':atlas,'model_tested':model_tested, 'wbpath':wbpath, 'crossval':crossval}
+                                print('\nMaking workbench visualization files..\n')
+                                print('Making workbench figures..\n')
+                                generate_wb_figures(**kwargs_workbench)
             else:
                 
                 #print('Running Basic models.........')
@@ -251,20 +283,22 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
 
                     nsites = np.unique(site).shape[0]
 
-                    if not figs_only:
-                        files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset)
-                        if files_exist:
-                            output_fullpath = folder
-                            output_path = output_fullpath.replace(results_path, '')
-                        else:
-                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path)
                     
+                    files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset)
+
+                    if files_exist:
+                        output_fullpath = folder
+                        output_path = output_fullpath.replace(results_path, '')
+                    else:
+                        if not figs_only:
+                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path)
+                
                     if crossval == '2':
-                        shape_2 = np.unique(site).shape[0]
+                        n_outer_folds = np.unique(site).shape[0]
                     elif crossval == '5' or crossval == '1' or crossval =='3' or crossval == '4':
-                        shape_2 =5
+                        n_outer_folds =5
                                             
-                    [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,lesionload_type,ensemble,shape_2)
+                    [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds)
                     
                     
                     if ensemble=='demog':
@@ -276,41 +310,55 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
                         
                         
                     label_plot_one.append(label)
-                    if loo_counter == 0:
-                        # have to initialize these down here so we have nsites available for the size
-                        r2means_loo=np.empty(shape=(0,nsites))
-                        corrs_loo=np.empty(shape=(0,nsites))
+
 
                     if crossval=='2': # leave-one-site-out
+                        if loo_counter == 0:
+                            # have to initialize these down here so we have nsites available for the size
+                            r2means_loo=np.empty(shape=(0,nsites))
+                            corrs_loo=np.empty(shape=(0,nsites))
                         r2means_loo=np.append(r2means_loo, np.reshape(np.median(r2all,axis=0), [-1, nsites]),axis=0)
                         corrs_loo=np.append(corrs_loo,np.reshape(np.median(corrall,axis=0), [-1, nsites]),axis=0)
                         loo_counter = loo_counter+1
                     else:
                         r2means=np.append(r2means,np.reshape(np.mean(r2all,axis=1),[-1, nperms]),axis=0)
                         corrs=np.append(corrs,np.reshape(np.mean(corrall,axis=1), [-1, nperms]),axis=0)
-                        
-    if  r2means_loo.shape[0] != 0:
-        print('leave one out')
+                    
 
+                        
+    if 'r2means_loo' in locals():
+        print('leave one out')
         r2means = r2means_loo
         corrs = corrs_loo
 
-    fname = 'boxplots'
-    kwargs = {'label': label_plot_one, 'r2_scores':r2means, 'correlations':corrs,'results_path': results_path, 'output_path': output_path, 'filename':fname}
-    
-    # create figures that summarize models' performance
-    if crossval=='2':
-        # if leave one out, we are taking the mean across the permutations where each 'point' is a site
-        create_performance_figures_loo(**kwargs)
-    else:
-        # if we are not looking at leave one out, we are plotting each permutation separately.
-        print('Making boxplots..')
-        create_performance_figures(**kwargs)
+    kwargs = {'label': label_plot_one, 'r2_scores':r2means, 'correlations':corrs,'results_path': results_path, 'analysis_id': analysis_id}
+   
+    if boxplots:
+        # create figures that summarize models' performance
+        if crossval=='2':
+            # if leave one out, we are taking the mean across the permutations where each 'point' is a site
+            create_performance_figures_loo(**kwargs)
+        else:
+            # if we are not looking at leave one out, we are plotting each permutation separately.
+            print('Making boxplots..')
+            create_performance_figures(**kwargs)
+        
+        
+        
+
+
+
+
+
+
+
+
+
 
     if crossval == '2':
         site_specific_plots=[]
         if site_specific_plots:
-            for site in range(0,shape_2): # for each site, create a plot.
+            for site in range(0,n_outer_folds): # for each site, create a plot.
                 predarrays=[]
                 truearrays=[]
                 labels=[]

@@ -1,0 +1,15 @@
+#!/bin/sh
+
+#
+# Matlab's system() passes a messy library environment
+# remove the offending variables
+#
+unset DYLD_FRAMEWORK_PATH
+unset DYLD_LIBRARY_PATH
+
+#
+# Point to the actual application executable
+#
+directory=`dirname "$0"`
+"$directory"/../macosx64_apps/wb_view.app/Contents/MacOS/wb_view "$@"
+exit $?

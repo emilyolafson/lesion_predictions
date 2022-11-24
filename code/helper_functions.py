@@ -3,26 +3,22 @@ import sys; sys.path
 import numpy as np 
 from scipy.stats import pearsonr
 import os
+
 from sklearn.model_selection import GridSearchCV, KFold
-from sklearn import preprocessing, linear_model
-from sklearn.metrics import explained_variance_score,accuracy_score,roc_auc_score,mean_absolute_error
+from sklearn.metrics import explained_variance_score,mean_absolute_error
 import matplotlib
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import Lasso, Ridge, ElasticNet,LinearRegression,LogisticRegression
 from sklearn.svm import SVC
-from sklearn.decomposition import PCA
 from sklearn.feature_selection import SelectKBest,f_regression
 import matplotlib.pyplot as plt
 import warnings
-from sklearn.model_selection import GroupShuffleSplit,ShuffleSplit,GroupKFold, LeaveOneGroupOut, KFold
+from sklearn.model_selection import GroupShuffleSplit,GroupKFold, LeaveOneGroupOut, KFold
 import logging
 import glob
 import math
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder 
 from sklearn.ensemble import RandomForestClassifier
-from matplotlib.ticker import (MultipleLocator, FormatStrFormatter,
-                               AutoMinorLocator)
-from functools import partial
+
 import warnings
 warnings.filterwarnings('ignore') 
 
@@ -164,36 +160,6 @@ def naive_pearson_cor(X, Y):
     return result[0]
 
 
-def feature_select_PCA(x_train, x_test, a):
-    """Return values for the top a PCs of x based on PCA of x.
-         
-         Inputs:
-             x = input matrix
-             y = variable/s predicted 
-             a = number of PCs
-         
-        Returns:
-            x_train_featselect = training data with selected features 
-            x_test_featselect = test data matrix with selected features 
-            var_expl = variance explained by top a components
-            components = PCs selected"""
-    
-    # check that dimension of x is greater than a
-    if x_train.shape[1]<a:
-        raise Exception('Number of features in X is less than the number of features specified to retain (a).') 
-    
-    # Feature selection: use only the top n features based on top a PCs in training data 
-    pca = PCA(n_components=a, copy=True, random_state=42)
-    x_train_featselect = pca.fit(x_train).transform(x_train)
-    x_test_featselect = pca.transform(x_test)
-    components = pca.components_
-
-    
-    var_expl = pca.explained_variance_
-
-
-    return x_train_featselect,x_test_featselect, components
-
 def feature_select_correlation(x_train, x_test, y, a):
     """Return values for the top a features of x based on abs. value Spearman correlation with y.
          Inputs:
@@ -222,210 +188,7 @@ def feature_select_correlation(x_train, x_test, y, a):
     x_test_featselect=np.squeeze(x_test[:,ind],2)
 
     return x_train_featselect,x_test_featselect, ind
-def run_classification(X, Y, group, inner_cv, outer_cv, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null):
-    
-    outer_cv_splits = outer_cv.get_n_splits(X, Y, group)
- 
-    models = np.zeros((len(models_tested), outer_cv_splits), dtype=object)
-    balanced_accuracies  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
-    variable_importance  = []
-    size_testgroup =[]
 
-    for n in range(0,nperms):
-        
-        logprint('PERMUTATION: {}'.format(n))
-        
-        for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X, Y, group)):
-
-            logprint("Fold: {}".format(cv_fold + 1))
-            
-            X_train, X_test = X[train_id], X[test_id]
-            y_train, y_test = Y[train_id], Y[test_id]
-            group_train, group_test = group[train_id], group[test_id]
-            
-            logprint('Size of test group: {}'.format(group_test.shape[0]))
-            logprint('Size of train group: {}'.format(group_train.shape[0]))
-
-            mdls, mdls_labels = get_models('classification', models_tested)
-            size_testgroup.append(group_test.shape[0])
-            mdl_idx=0
-            for mdl, mdl_label in zip(mdls, mdls_labels): 
-                filename = results_path + '/{}_{}_{}_{}_{}_crossval{}_{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
-        
-                if null>0:
-                    logprint('NULL!')
-                    filename = filename + '_null_' + str(null)
-                    
-                logprint('-------------- saving file as: {} -------------'.format(filename))
-                
-                logprint('Performing grid search for: {} \n'.format(mdl_label))
-                mdl = inner_loop(mdl, mdl_label, X_train, y_train, group_train, inner_cv, 10)  
-                mdl.fit(X_train, y_train)
-                y_pred= mdl.predict(X_test)
-                
-                y_score = mdl.predict_proba(X_test)[:, 1]
-                accuracies =  accuracy_score(y_test, y_pred)
-                logprint(accuracies)
-                
-                bacc=balanced_accuracy(y_test,y_pred)
-                ppvscore = ppv(y_test,y_pred)
-                npvscore = npv(y_test,y_pred)
-                auc = roc_auc_score(y_test,y_pred)
-                #variable_importance.append(mdl.named_steps[mdl_label].coef_)
-                #correlations[mdl_idx, cv_fold] = np_pearson_cor(y_test,y_pred)[0]
-                
-                logprint('Accuracy: {} \n'.format(accuracies))
-                logprint('Balanced accuracy: {} \n'.format(bacc))
-                logprint('PPV: {}'.format(ppvscore))
-                logprint('NPV: {}'.format(npvscore))
-                logprint('AUC: {}'.format(auc))
-
-                #logprint('Correlation: {} \n'.format(np_pearson_cor(y_test,y_pred)))
-
-                balanced_accuracies[mdl_idx, cv_fold]=bacc
-                
-                if save_models:
-                    models[mdl_idx, cv_fold] = mdl
-                    
-                mdl_idx += 1
-
-        logprint("Saving data...")
-        #np.save(os.path.join(results_path, filename + "_scores.npy"), balanced_accuracies)
-        np.save(os.path.join(results_path, filename + "_model.npy"), models)
-       # np.save(os.path.join(results_path, filename + "_correlations.npy"), correlations)
-
-        np.save(os.path.join(results_path, filename + "_model_labels.npy"), mdls_labels)
-       # np.save(os.path.join(results_path, filename + "_variable_impts.npy"), variable_importance)
-        np.save(os.path.join(results_path, filename + "_test_group_sizes.npy"), size_testgroup)
-        
-def scale_data(x_train, x_test):
-    '''Scale the training data and apply transformation to the test/validation data.
-
-        Inputs:
-            x_train = training predictors
-            x_test = training predictors 
-        
-        Returns:
-            x_train_scaled
-            x_test_scaled '''
-    
-    # Scale x_train 
-    scaler = preprocessing.StandardScaler().fit(x_train)
-    
-    # apply transformation to train & test set.
-    x_train_scaled = scaler.transform(x_train)
-    x_test_scaled = scaler.transform(x_test)
-    
-    return x_train_scaled, x_test_scaled
-
-def normalize_data(x_train, x_test):
-    '''subtracting the mean and dividing by the l2-norm'''
-    x_train_mean=np.mean(x_train)
-    x_train_norm=np.linalg.norm(x_train)
-    
-    x_test_mean=np.mean(x_test)
-    x_test_norm=np.linalg.norm(x_test)
-    
-    x_train=(x_train-x_train_mean)/x_train_norm
-    x_test=(x_test-x_test_mean)/x_test_norm
-
-    return x_train, x_test
-
-def gcv_ridge(hyperparam, x, y, k, featsel='None', a=10):
-    """Perform gridsearch using k-fold cross-validation on a single hyperparameter 
-    in ridge regression, and return mean R^2 across inner folds.
-    
-    Inputs: 
-        hyperparam = list of hyperparameter values to train & test on validation est
-        x = N x p input matrix
-        y = 1 x p variable to predict
-        k = k value in k-fold cross validation 
-        featsel = type string, feature selection method, default="None"
-            'None' - no feature selection; use all variables for prediction
-            'correlation'- calculate the abs. val. Pearson correlation between all training variables with the varibale to predict. Use the highest 'a' variables based on their correlation for prediction
-            'PCA' - perform PCA on the training variables and use the top 'a' PCs as input variables, by variance explained, for prediction
-        a = number of features to select using one of the above methods, default=10 
-    
-    Returns:
-        expl_var = the mean R^2 (coefficient of determination) across inner loop folds for the given hyperparameter
-    """
-    
-    # make sure k is reasonable 
-    if x.shape[0]/k <= 2:
-        raise Exception('R^2 is not well-defined with less than 2 subjects.')   
-    
-    # set alpha in ridge regression
-    alpha = hyperparam
-
-    comp = []
-    explvar=[]
-    
-    # Split data into test and train: random state fixed for reproducibility
-    kf = KFold(n_splits=k,shuffle=True,random_state=43)
-    
-    # K-fold cross-validation 
-    for train_index, valid_index in kf.split(x):
-        x_train, x_valid = x[train_index], x[valid_index]
-        y_train, y_valid = y[train_index], y[valid_index]
-                
-        if featsel=='correlation':
-            x_train, x_valid, ind = feature_select_correlation(x_train, x_valid, y_train, a)
-            
-        elif featsel=='PCA':
-            x_train, x_valid, components = feature_select_PCA(x_train, x_valid, a)
-        
-        # Fit ridge regression with (x_train_scaled, y_train), and predict x_train_scaled
-        regr = linear_model.Ridge(alpha=alpha, normalize=True, max_iter=1000000, random_state=42)
-        y_pred = regr.fit(x_train, y_train).predict(x_valid)
-        explvar.append(explained_variance_score(y_valid, y_pred))
-    
-    # use explained_variance_score instead:
-    expl_var=np.mean(explvar)
-    
-    return expl_var
-
-def plot_figure(gcv_values, string, midpoint):
-    '''Plots the R^2 value obtained across all grid-search pairs (# features and regularization values.)
-    
-    Inputs:
-        gcv_values - matrix to plot
-        string - title
-        midpoint - point at which blue turns to red.'''
-    
-    plt.figure(figsize=(17,14))
-    shifted_cmap = shiftedColorMap(plt.get_cmap('bwr'), midpoint=midpoint, name='shifted')
-
-    plt.imshow(gcv_values, cmap=shifted_cmap, interpolation='nearest')
-
-    plt.xlabel('# Features', fontsize=15, fontweight='bold')
-    plt.ylabel('Alphas', fontsize=15, fontweight='bold')
-
-    row=np.argmax(np.max(gcv_values, axis=0))
-    col=np.argmax(np.max(gcv_values, axis=1))
-
-    ax = plt.axes()
-
-    ax.xaxis.set_major_locator(plt.MultipleLocator(1))
-    ax.yaxis.set_major_locator(plt.MultipleLocator(1))
-
-    xticks= np.linspace(feat_start, feat_end,n_feats, dtype=int)
-    yticks= np.linspace(alpha_start, alpha_end, n_alphas,dtype=None)
-
-    plt.xticks(np.arange(len(feats)), fontsize=18)
-    plt.yticks(np.arange(len(alphas)), fontsize=18)
-
-    ax.set_xticklabels(xticks)
-    ax.set_yticklabels(np.round(yticks,3))
-
-    #ax.xaxis.set_major_formatter(mpl.ticker.StrMethodFormatter('{xticks: .2f}'))
-    cbar = plt.colorbar()
-    cbar.set_label('R^2')
-    plt.title(string + '_Best R^2 = ' + str(np.round(np.max(gcv_values), 3)), fontsize=20)
-
-    plt.scatter(row,col,color='k')
-    plt.savefig(results_dir+string+ '.png')
-    plt.show()
-      
 def determine_featselect_range(X):
     X_max_dim = X.shape[1]
     X_min_dim = 5
@@ -783,13 +546,21 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, 
                 mdl = inner_loop(mdl, mdl_label, X_train, y_train, group_train, inner_cv, 10)  
 
                 mdl.fit(X_train, y_train)
-                
+                print(models_tested[0])
                 if models_tested[0] == 'ridge':
                     cols = mdl['featselect'].get_support(indices=True)
-
                     ## HAUFE TRANSFORMS:
                     activation = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
                     activation_weights.append(activation)
+                elif models_tested[0] == 'ridge_nofeatselect':
+                    print('yabadabadoo')
+                    cols = [0, 1, 2, 3, 4, 5]
+                    ## HAUFE TRANSFORMS:
+                    activation = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
+                    activation_weights.append(activation)
+                else:
+                    activation_weights=[]
+
 
                 y_pred= mdl.predict(X_test)
                 
@@ -797,7 +568,7 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, 
                 filename =  '/{}_{}_{}_{}_{}_crossval{}_perm{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
                 filename_plot = results_path + output_path + '/{}_{}_{}_{}_{}_crossval{}_perm{}_outerfold{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n, cv_fold)
 
-                save_plots_true_pred(y_test,y_pred,filename_plot, np_pearson_cor(y_test,y_pred)[0] )
+                #save_plots_true_pred(y_test,y_pred,filename_plot, np_pearson_cor(y_test,y_pred)[0] )
                 
                 variable_importance.append(mdl.named_steps[mdl_label].coef_)
                 correlations[mdl_idx, cv_fold] = np_pearson_cor(y_test,y_pred)[0]
@@ -821,8 +592,8 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, 
         np.save(results_path+ output_path +filename + "_scores.npy", explained_var)
         np.save(results_path+output_path+ filename + "_model.npy", models)
         np.save(results_path+output_path+ filename + "_correlations.npy", correlations)
-        if models_tested != 'linear_regression':
-            np.save(results_path,output_path+filename + "_activation_weights.npy", activation_weights)
+       
+        np.save(results_path+output_path+filename + "_activation_weights.npy", activation_weights)
 
         np.save(results_path+output_path+ filename + "_model_labels.npy", mdls_labels)
         np.save(results_path+output_path+filename + "_variable_impts.npy", variable_importance)
@@ -903,7 +674,7 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv_id, outer_cv_id, models_te
             filename = '/{}_{}_{}_{}_{}_crossval{}_perm{}_ensemble'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
             
             filename_plot = results_path + output_path + '/{}_{}_{}_{}_{}_crossval{}_perm{}_outerfold{}_ensemble'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n, cv_fold)
-            save_plots_true_pred(y_test,avg_pred, filename_plot, np_pearson_cor(y_test,avg_pred)[0] )
+            #save_plots_true_pred(y_test,avg_pred, filename_plot, np_pearson_cor(y_test,avg_pred)[0] )
 
             #variable_importance.append(mdl.named_steps[mdl_label].coef_)
             correlations_ensemble[mdl_idx, cv_fold] = np_pearson_cor(y_test,avg_pred)[0]
@@ -1020,7 +791,7 @@ def set_up_and_run_model(crossval, model_tested,lesionload,lesionload_type, X, Y
                 chaco_type ='NA'
                 run_regression_ensemble(lesionload, C, Y, site, inner_cv_id,outer_cv_id,model_tested, atlas, y_var, chaco_type, subset,1, results_path,crossval, nperms,null, output_path)
           
-def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,lesionload_type, ensemble,shape_2):
+def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms, ensemble,n_outer_folds):
     
     logprint('Saving model outputs to directory: {}'.format(results_path + output_path))
     
@@ -1029,40 +800,52 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
     
     rootname_truepred = results_path + output_path + '/{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval)
 
-    r2scores_allperms=np.zeros(shape=(nperms, shape_2))
-    correlation_allperms=np.zeros(shape=(nperms, shape_2))
+    r2scores_allperms=np.zeros(shape=(nperms, n_outer_folds))
+    correlation_allperms=np.zeros(shape=(nperms, n_outer_folds))
     
-    # if leave-one-site-out, make a figure showing the distribution of predicted scores across permutations 
-        # in addition to creating outputs below \/
-    if crossval == '2': # leave one site out
-        # have to do this here, i guess.
+    if atlas == 'lesionload_all':
+        varimpts_allperms = np.zeros(shape=(nperms, 6))
+    if chaco_type=='chacoconn':
+        if atlas == 'fs86subj':
+            varimpts_allperms = np.empty(shape=(0, 86, 86))
+        if atlas == 'shen268':
+            varimpts_allperms = np.empty(shape=(0, 268, 268))
+    elif chaco_type=='chacovol':
+        if atlas == 'fs86subj':
+            varimpts_allperms = np.empty(shape=(0, 86))
+        if atlas == 'shen268':
+            varimpts_allperms = np.empty(shape=(0, 268))
         
-        # shape_2 = number of outer folds per permutation.
-        for site in range(0,shape_2):
-            # oh jeez
-            site_size = np.load(rootname_truepred +'_perm0_outerfold'+str(site) +'_true.npy', allow_pickle=True).shape[0]
-            true_array = np.zeros(shape=(site_size,nperms))
-            pred_array = np.zeros(shape=(site_size,nperms))
+        
+    correlation_allperms=np.zeros(shape=(nperms, n_outer_folds))
 
-            for n in range(0,nperms): 
-                true_array[:,n]=np.load(rootname_truepred +'_perm'+ str(n) + '_outerfold'+str(site) +'_true.npy', allow_pickle=True)
-                pred_array[:,n]=np.load(rootname_truepred +'_perm'+ str(n) + '_outerfold'+str(site) +'_pred.npy', allow_pickle=True)
-            
-            #
-            np.savetxt(rootname_truepred+ '_outerfold'+str(site) +'_true_allperms.txt', true_array)
-            np.savetxt(rootname_truepred+ '_outerfold'+str(site) +'_pred_allperms.txt', pred_array)
 
-            #print(pred_array.shape)
-            #create_site_truepred_figures(true_array, pred_array, site_size,results_path, site)
-    
     for n in range(0, nperms): #
+        # if ensemble model was run, the filename is different because i'm a silly billy. catch it here. 
+        # don't care about feature weights for demographic information, and any lesion feature weights are the same as no-ensemble models.
+        if ensemble =='demog':
+            
+            r2scores_ensemble=np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_scores.npy',allow_pickle=True)
+            correlation_ensemble = np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_correlations_ensemble.npy',allow_pickle=True)
+            #varimpts_ensemble=np.load(rootname +'_perm'+ str(n) +  '_ensemble'+ '_activation_weights.npy',allow_pickle=True)
+            mdl=np.load(rootname +'_perm'+ str(n) + '_ensemble'+  '_model.npy',allow_pickle=True)
+            r2scores_allperms[n,] = r2scores_ensemble
+            correlation_allperms[n,] = correlation_ensemble
+            
+            
         # no ensemble model.
-        
         if ensemble =='none':
             r2scores=np.load(rootname +'_perm'+ str(n) + '_scores.npy',allow_pickle=True)
             correlation = np.load(rootname +'_perm'+ str(n) +'_correlations.npy',allow_pickle=True)
-           # if crossval !="1":
-               # varimpts=np.load(rootname +'_perm'+ str(n) + '_activation_weights.npy',allow_pickle=True)
+            varimpts=np.load(rootname +'_perm'+ str(n) + '_activation_weights.npy',allow_pickle=True)
+            
+            if atlas == 'lesionload_all':
+                # bc there is no feature selection, we can average the weights of the lesioad load CSTs together together.
+                varimpts_allperms[n,]=np.mean(varimpts,axis=0)
+            if atlas == 'fs86subj' or atlas == 'shen268':
+                # there is feature selection. so let's concatenate the outer loop features together and only look at features that are included in >50% of the outer folds
+                varimpts_allperms=np.concatenate((varimpts_allperms,varimpts),axis=0)
+
             mdl=np.load(rootname +'_perm'+ str(n) + '_model.npy',allow_pickle=True)
             
             r2scores_allperms[n,] = r2scores
@@ -1072,37 +855,71 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
                 alphas=[]
                 feats=[]
                 
-                for a in range(0,5):
-                    alphas.append(mdl[0][a][mdl_label].alpha)
-                    feats.append(mdl[0][a]['featselect'].k) 
+                for outer_fold in range(0,5):
+                    alphas.append(mdl[0][outer_fold][mdl_label].alpha)
+                    feats.append(mdl[0][outer_fold]['featselect'].k) 
                     
                 np.savetxt(rootname_truepred +'_perm'+ str(n)  +'_alphas.txt', alphas)
                 np.savetxt(rootname_truepred +'_perm'+ str(n)  +'_nfeats.txt', feats)
                 
-            
-        # if ensemble model was run, the filename is different. catch it here.
-        if ensemble =='demog':
-            
-            r2scores_ensemble=np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_scores.npy',allow_pickle=True)
-            correlation_ensemble = np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_correlations_ensemble.npy',allow_pickle=True)
-            #varimpts_ensemble=np.load(rootname +'_perm'+ str(n) +  '_ensemble'+ '_activation_weights.npy',allow_pickle=True)
-            mdl=np.load(rootname +'_perm'+ str(n) + '_ensemble'+  '_model.npy',allow_pickle=True)
-            r2scores_allperms[n,] = r2scores_ensemble
-            correlation_allperms[n,] = correlation_ensemble
+        
+    # if leave-one-site-out, we want to save the results additionally in a different way.
+    # make a figure showing the distribution of predicted scores across permutations 
+    # in addition to creating outputs below \/
+    if crossval == '2': # leave one site out
+        # have to do this here, i guess.
+        
+        for site in range(0,n_outer_folds):
+            # oh jeez
+            if ensemble=='none':
+                site_size = np.load(rootname_truepred +'_perm0_outerfold'+str(site) +'_true.npy', allow_pickle=True).shape[0]
+                #true_array = np.zeros(shape=(site_size,nperms))
+                #pred_array = np.zeros(shape=(site_size,nperms))
 
-            # logprint('varimpts dim: {}'.format(varimpts_ensemble.shape))
-
-            if mdl_label == 'ridge':
-                alphas=[]
-                feats=[]
+                #for n in range(0,nperms): 
+                    #true_array[:,n]=np.load(rootname_truepred +'_perm'+ str(n) + '_outerfold'+str(site) +'_true.npy', allow_pickle=True)
+                    #pred_array[:,n]=np.load(rootname_truepred +'_perm'+ str(n) + '_outerfold'+str(site) +'_pred.npy', allow_pickle=True)
                 
-                for a in range(0,5):
-                    alphas.append(mdl[0][a][mdl_label].alpha)
-                    feats.append(mdl[0][a]['featselect'].k) 
-                    
+                #
+                #np.savetxt(rootname_truepred+ '_outerfold'+str(site) +'_true_allperms.txt', true_array)
+                #np.savetxt(rootname_truepred+ '_outerfold'+str(site) +'_pred_allperms.txt', pred_array)
+
+    #after data from all permutations collected
+    # save the average feature weight from features included in 50%, 90%, or 99% of outer folds.
+    if atlas == 'fs86subj' or atlas == 'shen268':
+        
+        n_outer_folds_total = nperms*n_outer_folds # 500 for k=5 and nperm=100
+        
+        threshold_50 = n_outer_folds_total-n_outer_folds_total/2 # 50%
+        threshold_90 = n_outer_folds_total-n_outer_folds_total/10 # 90%
+        threshold_99 = n_outer_folds_total-n_outer_folds_total/100 # 99%
+
+        nonzero_outerfolds = np.count_nonzero(varimpts_allperms,axis=0)
+        
+        n_50_feats= varimpts_allperms[:, nonzero_outerfolds > threshold_50].shape
+        n_90_feats= varimpts_allperms[:, nonzero_outerfolds > threshold_90].shape
+        n_99_feats= varimpts_allperms[:, nonzero_outerfolds > threshold_99].shape
+
+        print('\n{}/{} features were incorporated in 50% of outer folds.'.format(n_50_feats[1],varimpts_allperms.shape[1]))
+        print('\n{}/{} features were incorporated in 90% of outer folds.'.format(n_90_feats[1],varimpts_allperms.shape[1]))
+        print('\n{}/{} features were incorporated in 99% of outer folds.'.format(n_99_feats[1],varimpts_allperms.shape[1]))
+        
+        mean_featureweight_allperms = np.mean(varimpts_allperms,axis=0)
+        # set to 0 any features that were not included in x% outer folds.
+        mean_featureweight_allperms_50 = mean_featureweight_allperms*(nonzero_outerfolds > threshold_50)
+        mean_featureweight_allperms_90 = mean_featureweight_allperms*(nonzero_outerfolds > threshold_90)
+        mean_featureweight_allperms_99 = mean_featureweight_allperms*(nonzero_outerfolds > threshold_99)
+        
+        np.savetxt(rootname_truepred +'_meanfeatureweight_allperms_50.txt', mean_featureweight_allperms_50)
+        np.savetxt(rootname_truepred +'_meanfeatureweight_allperms_90.txt', mean_featureweight_allperms_90)
+        np.savetxt(rootname_truepred +'_meanfeatureweight_allperms_99.txt', mean_featureweight_allperms_99)
+        
+    if atlas =='lesionload_all':
+         np.savetxt(rootname_truepred +'_meanfeatureweight_allperms.txt', np.mean(varimpts_allperms,axis=0))   
+ 
     np.savetxt(rootname_truepred + '_r2_scores.txt', r2scores_allperms)
     np.savetxt(rootname_truepred +'_correlations.txt', correlation_allperms)   
-                     
+          
     return r2scores_allperms, correlation_allperms
 
 def logprint(string):
@@ -1110,188 +927,25 @@ def logprint(string):
     logging.info(string)
  
  
-def create_site_truepred_figures(true, pred,site_size,results_path,site):
-    font = {'family' : 'normal',
-            'size'   : 15}
-    fig, ax1 = plt.subplots(figsize =(10, 10))
-  
-    meanpred = np.mean(pred,axis=1)
-    meanpred_rep = np.repeat(np.reshape(meanpred, [site_size, 1]), 8, axis=1)
-    meantrue = np.mean(true, axis=1)
-    
-    err = np.mean(np.abs(pred - meanpred_rep), axis=1) # MAE
-    
-    print(err)
-    plt.scatter(meantrue, meanpred)
-    plt.errorbar(meantrue,meanpred,yerr=err, linestyle="none")
-    ax1.plot([0,1],[0,1],'k--',transform=ax1.transAxes)
-    plt.ylim([0, 1])
-    plt.xlim([0, 1])
-
-
-    #plt.scatter(np.mean(true_, pred,)
-    #plt.errorbar(a,b,yerr=c, linestyle="None")
-    plt.savefig(results_path + '/figures/' + 'truepredfig_site_' + str(site)+'.png')
-
-def create_performance_figures_loo(r2_scores, correlations,label, results_path, output_path, filename):
-    font = {'family' : 'normal',
-            'size'   : 15}
-
-    matplotlib.rc('font', **font)
-    
-    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize =(20, 20))
-    plt.subplots_adjust(bottom=0.6)
-
-    ax1.boxplot(np.transpose(r2_scores))
-    ax1.set_ylim([np.min(r2_scores)-0.1, np.max(r2_scores)+0.3])
-    ax1.set_ylabel('{}'.format('$R^2$'))
-    ax1.xaxis.set_ticks([x for x in range(1,len(label)+1)])
-    ax1.xaxis.set_ticklabels(label, rotation=90)
-    
-    correlations = np.transpose(correlations)
-    
-    # remove data points that are nan or from a site with one subject
-    mask = np.logical_and(~np.isnan(correlations),correlations<0.99)
-    filtered_data = [d[m] for d, m in zip(correlations.T, mask.T)]
-    
-    ax2.boxplot(filtered_data)
-    ax2.set_ylim([np.min(filtered_data)-0.1, np.max(filtered_data)+0.3])
-    ax2.set_ylabel('Correlation')
-    
-    print([x for x in range(1,len(label)+1)])
-    
-    ax2.xaxis.set_ticks([x for x in range(1,len(label)+1)])
-    ax2.xaxis.set_ticklabels(label, rotation=90)
-    
-    print([results_path + output_path + '/'+ filename + '.png'])
-    plt.savefig(results_path + output_path + '/'+ filename + '.png')
-    
-def create_performance_figures(r2_scores, correlations,label, results_path, output_path, filename):
-    font = {'family' : 'normal',
-            'size'   : 15}
-
-    matplotlib.rc('font', **font)
-    
-    # boxplots
-    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize =(20, 10))
-    plt.subplots_adjust(bottom=0.4)
-
-    ax1.boxplot(np.transpose(r2_scores))
-    ax1.set_ylim([np.min(r2_scores), np.max(r2_scores)+0.3])
-    ax1.set_ylabel('{}'.format('$R^2$'))
-    ax1.xaxis.set_ticks([x for x in range(1,len(label)+1)])
-    ax1.xaxis.set_ticklabels(label, rotation=90)
-
-    ax2.boxplot(np.transpose(correlations))
-    ax2.set_ylim([np.min(r2_scores), np.max(correlations)+0.2])
-    ax2.set_ylabel('Correlation')
-        
-    ax2.xaxis.set_ticks([x for x in range(1,len(label)+1)])
-    ax2.xaxis.set_ticklabels(label, rotation=90)
-    
-    print([results_path + output_path + '/'+ filename + '.png'])
-    plt.savefig(results_path + output_path + '/'+ filename + '.png')
-    
 def check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset):
     # get list of subdirectories:
     
-    subfolders = glob.glob(results_path + '/analysis_?',recursive = False)
+    subfolders = glob.glob(results_path + '/analysis_*',recursive = False)
     
     for folder in subfolders:
         if ensemble == 'demog':
-            filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm0_ensemble_scores.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
+            filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_ensemble_scores.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
+
             if os.path.exists(filename):
                 print('Files already exist in folder {}!'.format(folder))
                 return True, folder
-
-            
+ 
         else:
-            filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm0_scores.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
+            #filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_scores.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
+            filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_activation_weights.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
+            
             if os.path.exists(filename):
                 print('File already exists in folder {}'.format(folder))
                 return True, folder  
 
     return False, results_path
-
-
-def box_and_whisker(data, title, ylabel, xticklabels):
-    """
-    Create a box-and-whisker plot with significance bars.
-    Source: https://rowannicholls.github.io/python/graphs/ax_based/boxplots_significance.html
-    """
-    ax = plt.axes()
-    bp = ax.boxplot(data, widths=0.6, patch_artist=True)
-    # Graph title
-    ax.set_title(title, fontsize=14)
-    # Label y-axis
-    ax.set_ylabel(ylabel)
-    # Label x-axis ticks
-    ax.set_xticklabels(xticklabels)
-    # Hide x-axis major ticks
-    ax.tick_params(axis='x', which='major', length=0)
-    # Show x-axis minor ticks
-    xticks = [0.5] + [x + 0.5 for x in ax.get_xticks()]
-    ax.set_xticks(xticks, minor=True)
-    # Clean up the appearance
-    ax.tick_params(axis='x', which='minor', length=3, width=1)
-
-    # Change the colour of the boxes to Seaborn's 'pastel' palette
-    colors = sns.color_palette('pastel')
-    for patch, color in zip(bp['boxes'], colors):
-        patch.set_facecolor(color)
-
-    # Colour of the median lines
-    plt.setp(bp['medians'], color='k')
-
-    # Check for statistical significance
-    significant_combinations = []
-    # Check from the outside pairs of boxes inwards
-    ls = list(range(1, len(data) + 1))
-    combinations = [(ls[x], ls[x + y]) for y in reversed(ls) for x in range((len(ls) - y))]
-    for c in combinations:
-        data1 = data[c[0] - 1]
-        data2 = data[c[1] - 1]
-        # Significance
-        U, p = stats.mannwhitneyu(data1, data2, alternative='two-sided')
-        if p < 0.05:
-            significant_combinations.append([c, p])
-
-    # Get info about y-axis
-    bottom, top = ax.get_ylim()
-    yrange = top - bottom
-
-    # Significance bars
-    for i, significant_combination in enumerate(significant_combinations):
-        # Columns corresponding to the datasets of interest
-        x1 = significant_combination[0][0]
-        x2 = significant_combination[0][1]
-        # What level is this bar among the bars above the plot?
-        level = len(significant_combinations) - i
-        # Plot the bar
-        bar_height = (yrange * 0.08 * level) + top
-        bar_tips = bar_height - (yrange * 0.02)
-        plt.plot(
-            [x1, x1, x2, x2],
-            [bar_tips, bar_height, bar_height, bar_tips], lw=1, c='k')
-        # Significance level
-        p = significant_combination[1]
-        if p < 0.001:
-            sig_symbol = '***'
-        elif p < 0.01:
-            sig_symbol = '**'
-        elif p < 0.05:
-            sig_symbol = '*'
-        text_height = bar_height + (yrange * 0.01)
-        plt.text((x1 + x2) * 0.5, text_height, sig_symbol, ha='center', c='k')
-
-    # Adjust y-axis
-    bottom, top = ax.get_ylim()
-    yrange = top - bottom
-    ax.set_ylim(bottom - 0.02 * yrange, top)
-
-    # Annotate sample size below each box
-    for i, dataset in enumerate(data):
-        sample_size = len(dataset)
-        ax.text(i + 1, bottom, fr'n = {sample_size}', ha='center', size='x-small')
-
-    plt.show()
