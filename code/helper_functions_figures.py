@@ -9,6 +9,8 @@ import seaborn as sns
 import os
 import shutil
 
+
+
 def create_performance_figures(r2_scores, correlations,label, results_path, analysis_id):
     
     title = ''
@@ -461,3 +463,51 @@ def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subs
         scenefile = results_path+ '/'+  analysis_id +'/rowsurfaces_scene.scene'
         print('Generating workbench figures:\n {}'.format(figurefile))
         os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
+        
+        
+def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval):
+    
+    rootname_truepred = results_path + output_path + '/{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
+    meanfeatureweights = np.loadtxt(rootname_truepred +'_meanfeatureweight_allperms.txt')
+    
+    # Change the colour of the boxes to match the SMATT figure.
+    m1 = (89/255, 196/255, 89/255) # green
+    s1 = (228/255, 212/255, 74/255) # yellow
+    pmd = (219/255, 100/255, 221/255) # pink
+    pmv = (236/255, 152/255, 81/255) # orange
+    sma = (76/255, 73/255, 231/255) # blue
+    psma = (221/255, 52/255, 50/255) # red
+    
+    xticklabels = ['M1','PMd','PMv','S1','SMA','preSMA']
+
+    title = ''
+    path = results_path + '/' + analysis_id 
+    print('Saving figures with filename: {}'.format(path))
+    ylabel = 'Feature importance (haufe-transformed)'
+    path_file = path + '/'+ analysis_id + '_smatt_featureimpt.png'
+    
+    colors = (m1, pmd, pmv, s1, sma, psma)
+    data = meanfeatureweights
+   
+    fig, ax = plt.subplots(ncols=1, figsize =(7, 7))
+    
+    bp = ax.bar([0, 1, 2, 3, 4, 5], data)
+    # Graph title
+    ax.set_title(title, fontsize=14)
+    # Label y-axis
+    ax.set_ylabel(ylabel,fontsize=14)
+    # Label x-axis ticks
+    ax.set_xticklabels(xticklabels,rotation=90,fontsize=14)
+
+    # Hide x-axis major ticks
+    ax.tick_params(axis='x', which='major', length=0)
+    # Show x-axis minor ticks
+    xticks = [0.5] + [x + 0.5 for x in ax.get_xticks()]
+    ax.set_xticks(range(len(data)))
+    # Clean up the appearance
+    ax.tick_params(axis='x', which='minor', length=3, width=1)
+
+    for patch, color in zip(bp, colors):
+       patch.set_facecolor(color)       
+       
+    plt.savefig(path_file, bbox_inches ='tight')

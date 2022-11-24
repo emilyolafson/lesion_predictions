@@ -22,7 +22,15 @@ if set(['1']).issubset(set(run_analyses)):
                 'figs_only':generate_figs_only,\
                 'analysis_id':'analysis_1'}
         run_models(**kwargs)
-
+        
+scenesdir = '/home/ubuntu/enigma/motor_predictions/wb_files/'
+hcpdir ='/home/ubuntu/enigma/motor_predictions/wb_files/HCP_S1200_GroupAvg_v1/'
+wbpath = '/home/ubuntu/enigma/motor_predictions/wb_files/workbench_ubuntu/bin_linux64'
+run_analyses = [] # list of analyses to run (corresponds to analysis folders "analysis_X")
+generate_figs_only = False # whether to run ML models or just generate figures
+workbench_vis = True # 
+boxplots = True
+generate_wb_figures_setup(hcpdir, scenesdir)
 if set(['2']).issubset(set(run_analyses)):  
         kwargs = {'covariates':['AGE', 'SEX', 'DAYS_POST_STROKE'], \
                 'results_path':'/home/ubuntu/enigma/results',\
@@ -155,10 +163,10 @@ if set(['9']).issubset(set(run_analyses)):
         run_models(**kwargs)
         
         
-run_analyses = ['10'] # list of analyses to run (corresponds to analysis folders "analysis_X")
+#run_analyses = ['10'] # list of analyses to run (corresponds to analysis folders "analysis_X")
 generate_figs_only = False # whether to run ML models or just generate figures
 workbench_vis = False # 
-boxplots = True
+boxplots = False
 generate_wb_figures_setup(hcpdir, scenesdir)
 
 if set(['10']).issubset(set(run_analyses)):  
@@ -174,6 +182,29 @@ if set(['10']).issubset(set(run_analyses)):
                 'figs_only':generate_figs_only,\
                 'ensembles':['none'],\
                 'analysis_id':'analysis_10',\
+                'workbench_vis':workbench_vis,\
+                'scenesdir': scenesdir,\
+                'wbpath': wbpath, \
+                'boxplots': boxplots}
+
+        run_models(**kwargs)
+        
+run_analyses = ['11'] # list of analyses to run (corresponds to analysis folders "analysis_X")
+generate_figs_only = False # whether to run ML models or just generate figures
+workbench_vis = False # 
+boxplots = False
+
+if set(['11']).issubset(set(run_analyses)):  
+        kwargs = {'covariates':['AGE', 'SEX', 'DAYS_POST_STROKE'], \
+                'results_path':'/home/ubuntu/enigma/results',\
+                'output_path': '/analysis_11',\
+                'models_tested': ['ridge'],
+                'lesionload_types': ['all'], \
+                'crossval_types':['1'],\
+                'nperms':100, \
+                'figs_only':generate_figs_only,\
+                'ensembles':['none'],\
+                'analysis_id':'analysis_11',\
                 'workbench_vis':workbench_vis,\
                 'scenesdir': scenesdir,\
                 'wbpath': wbpath, \

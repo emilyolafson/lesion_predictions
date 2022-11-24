@@ -324,6 +324,14 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
                         r2means=np.append(r2means,np.reshape(np.mean(r2all,axis=1),[-1, nperms]),axis=0)
                         corrs=np.append(corrs,np.reshape(np.mean(corrall,axis=1), [-1, nperms]),axis=0)
                     
+                    if atlas == 'lesionload_all':
+                        
+                        kwargs_llfigs = {'results_path':results_path, 'output_path':output_path, 'analysis_id':analysis_id,\
+                            'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
+                                'model_tested':model_tested, 'crossval':crossval}
+                        generate_smatt_ll_figures(**kwargs_llfigs)
+                        
+                    
 
                         
     if 'r2means_loo' in locals():
