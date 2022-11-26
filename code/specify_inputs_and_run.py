@@ -100,12 +100,16 @@ if set(['6']).issubset(set(run_analyses)):
 
         run_models(**kwargs)
 
+run_analyses=['7']
+generate_figs_only = False # whether to run ML models or just generate figures
+workbench_vis = False # 
+boxplots = True
 if set(['7']).issubset(set(run_analyses)):  
         kwargs = {'covariates':['AGE', 'SEX', 'DAYS_POST_STROKE'], \
                 'results_path':'/home/ubuntu/enigma/results',\
                 'output_path': '/analysis_7',\
                 'models_tested': ['ridge'],
-                'lesionload_types': ['none'], \
+                'lesionload_types': ['all'], \
                 'crossval_types':['1'],\
                 'atlases':['shen268'],\
                 'nperms':100, \
@@ -115,6 +119,8 @@ if set(['7']).issubset(set(run_analyses)):
                 'workbench_vis':workbench_vis}
 
         run_models(**kwargs)
+        
+run_analyses = [] # list of analyses to run (corresponds to analysis folders "analysis_X")
 
 if set(['8']).issubset(set(run_analyses)):  
         kwargs = {'covariates':['AGE', 'SEX', 'DAYS_POST_STROKE'], \
@@ -122,8 +128,8 @@ if set(['8']).issubset(set(run_analyses)):
                 'output_path': '/analysis_8',\
                 'models_tested': ['ridge'],
                 'lesionload_types': ['none'], \
-                'crossval_types':['1', '2','3', '4', '5'],\
-                'atlases':['fs86subj'],\
+                'crossval_types':[ '5'],\
+                'atlases':['fs86subj', 'shen268'],\
                 'chaco_types':['chacoconn'],\
                 'nperms':100, \
                 'figs_only':generate_figs_only,\
@@ -189,7 +195,7 @@ if set(['10']).issubset(set(run_analyses)):
 
         run_models(**kwargs)
         
-run_analyses = ['11'] # list of analyses to run (corresponds to analysis folders "analysis_X")
+#run_analyses = ['11'] # list of analyses to run (corresponds to analysis folders "analysis_X")
 generate_figs_only = False # whether to run ML models or just generate figures
 workbench_vis = False # 
 boxplots = False

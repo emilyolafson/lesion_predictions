@@ -236,17 +236,17 @@ def run_models(y_var=None, subset=None, models_tested=None, verbose=None, covari
                             else:
                                 r2means=np.append(r2means,np.reshape(np.mean(r2all,axis=1),[-1, nperms]),axis=0)
                                 corrs=np.append(corrs,np.reshape(np.mean(corrall,axis=1),[-1, nperms]),axis=0)
-                                
-                            if workbench_vis:
-                                kwargs_workbench_setup = { 'results_path': results_path, 'output_path': output_path, 'analysis_id': analysis_id, \
-                                    'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset, 'atlas':atlas,'model_tested':model_tested,  'crossval':crossval}
-                                print('\nMaking workbench visualization files..\n')
-                                generate_wb_files(**kwargs_workbench_setup)
-                                kwargs_workbench = { 'results_path': results_path, 'analysis_id': analysis_id, 'scenesdir': scenesdir,\
-                                    'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset, 'atlas':atlas,'model_tested':model_tested, 'wbpath':wbpath, 'crossval':crossval}
-                                print('\nMaking workbench visualization files..\n')
-                                print('Making workbench figures..\n')
-                                generate_wb_figures(**kwargs_workbench)
+                            if chaco_type == 'chacovol':   
+                                if workbench_vis:
+                                    kwargs_workbench_setup = { 'results_path': results_path, 'output_path': output_path, 'analysis_id': analysis_id, \
+                                        'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset, 'atlas':atlas,'model_tested':model_tested,  'crossval':crossval}
+                                    print('\nMaking workbench visualization files..\n')
+                                    generate_wb_files(**kwargs_workbench_setup)
+                                    kwargs_workbench = { 'results_path': results_path, 'analysis_id': analysis_id, 'scenesdir': scenesdir,\
+                                        'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset, 'atlas':atlas,'model_tested':model_tested, 'wbpath':wbpath, 'crossval':crossval}
+                                    print('\nMaking workbench visualization files..\n')
+                                    print('Making workbench figures..\n')
+                                    generate_wb_figures(**kwargs_workbench)
             else:
                 
                 #print('Running Basic models.........')

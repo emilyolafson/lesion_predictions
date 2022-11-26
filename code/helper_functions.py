@@ -319,12 +319,160 @@ def inner_loop(mdl, mdl_label, X, Y, group, inner_cv, n_jobs):
 def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, X):
     cov_y=np.cov(np.transpose(y_train))
     x_sub = X_train[:,cols]
-
     cov_x=np.cov(np.transpose(x_sub))
-    activationweight = mdl.named_steps[mdl_label].coef_
-    weight=np.transpose(activationweight)
+    beta_coeffs = mdl.named_steps[mdl_label].coef_
     
+    weight=beta_coeffs
     activation=np.matmul(cov_x,weight)*(1/cov_y)
+
+    # first transform the beta coefficients
+
+    if chaco_type =='chacovol':
+        if atlas == 'fs86subj':
+            
+            idx=np.ones(shape=(86,1), dtype='bool')
+            idx[cols]=False # set SC weights that are features to be 1
+            idx=idx.flatten()
+            zeroidx=np.arange(0, 86, dtype='int')
+            zeroidx=zeroidx[idx]
+            
+            # fill spots with 0's (up to 3192)
+            k=0
+            activation_full = beta_coeffs
+            while k < zeroidx.shape[0]:
+                activation_full=np.insert(activation_full, zeroidx[k],0)
+                k=k+1
+            
+            #logprint("Full 3192: " + str(np.sum(activation_full>0)))
+            # fill spots with 0's (up to 3655)
+            zeros=X==0
+            zeros=np.sum(zeros,0) # number of zeros across subjects
+            zeros=zeros==X.shape[0] # find columns with zeros for all 101 subjects
+            X=X[:,~zeros]
+            
+            zeroidx=np.arange(0, 86)
+            zeroidx=zeroidx[zeros]
+            
+            # fill spots with 0's
+            k=0
+            a = activation_full
+            while k < zeroidx.shape[0]:
+                a=np.insert(a, zeroidx[k],0)
+                k=k+1
+            
+            activation = a
+        elif atlas == 'shen268':
+            
+            idx=np.ones(shape=(268,1), dtype='bool')
+            idx[cols]=False # set SC weights that are features to be 1
+            idx=idx.flatten()
+            zeroidx=np.arange(0, 268, dtype='int')
+            zeroidx=zeroidx[idx]
+            
+            # fill spots with 0's (up to 3192)
+            k=0
+            activation_full = beta_coeffs
+            while k < zeroidx.shape[0]:
+                activation_full=np.insert(activation_full, zeroidx[k],0)
+                k=k+1
+            
+            #logprint("Full 3192: " + str(np.sum(activation_full>0)))
+            # fill spots with 0's (up to 3655)
+            zeros=X==0
+            zeros=np.sum(zeros,0) # number of zeros across subjects
+            zeros=zeros==X.shape[0] # find columns with zeros for all 101 subjects
+            X=X[:,~zeros]
+            
+            zeroidx=np.arange(0, 268)
+            zeroidx=zeroidx[zeros]
+            
+            # fill spots with 0's
+            k=0
+            a = activation_full
+            while k < zeroidx.shape[0]:
+                a=np.insert(a, zeroidx[k],0)
+                k=k+1
+            
+            activation = a
+    elif chaco_type=='chacoconn':
+        if atlas == 'fs86subj':
+                
+            idx=np.ones(shape=(3192,1), dtype='bool')
+            idx[cols]=False # set SC weights that are features to be 1
+            idx=idx.flatten()
+            zeroidx=np.arange(0, 3192, dtype='int')
+            zeroidx=zeroidx[idx]
+            
+            # fill spots with 0's (up to 3192)
+            k=0
+            activation_full = beta_coeffs
+            while k < zeroidx.shape[0]:
+                activation_full=np.insert(activation_full, zeroidx[k],0)
+                k=k+1
+            
+            #logprint("Full 3192: " + str(np.sum(activation_full>0)))
+            # fill spots with 0's (up to 3655)
+            zeros=X==0
+            zeros=np.sum(zeros,0) # number of zeros across subjects
+            zeros=zeros==X.shape[0] # find columns with zeros for all 101 subjects
+            X=X[:,~zeros]
+            
+            zeroidx=np.arange(0, 3655)
+            logprint(zeroidx.shape)
+            logprint(zeros.shape)
+            zeroidx=zeroidx[zeros]
+            
+            # fill spots with 0's
+            k=0
+            a = activation_full
+            while k < zeroidx.shape[0]:
+                a=np.insert(a, zeroidx[k],0)
+                k=k+1
+            
+            activation = a
+            fs86_counts = np.zeros((86, 86))
+            inds = np.triu_indices(86, k=1)
+            fs86_counts[inds] = activation
+            activation = fs86_counts
+        elif atlas == 'shen268':
+            idx=np.ones(shape=(25056,1), dtype='bool')
+            idx[cols]=False # set SC weights that are features to be 1
+            idx=idx.flatten()
+            zeroidx=np.arange(0, 25056, dtype='int')
+            zeroidx=zeroidx[idx]
+            
+            # fill spots with 0's (up to 3192)
+            k=0
+            activation_full = beta_coeffs
+            while k < zeroidx.shape[0]:
+                activation_full=np.insert(activation_full, zeroidx[k],0)
+                k=k+1
+            
+            #logprint("Full 3192: " + str(np.sum(activation_full>0)))
+            # fill spots with 0's (up to 3655)
+            zeros=X==0
+            zeros=np.sum(zeros,0) # number of zeros across subjects
+            zeros=zeros==X.shape[0] # find columns with zeros for all 101 subjects
+            X=X[:,~zeros]
+            
+            zeroidx=np.arange(0, 35778)
+            zeroidx=zeroidx[zeros]
+            
+            # fill spots with 0's
+            k=0
+            a = activation_full
+            while k < zeroidx.shape[0]:
+                a=np.insert(a, zeroidx[k],0)
+                k=k+1
+            
+            activation = a
+            shen268_counts = np.zeros((268, 268))
+            inds = np.triu_indices(268, k=1)
+            shen268_counts[inds] = activation
+            beta_coeffs = shen268_counts
+        
+
+    # then transform the haufe activations
 
     if chaco_type =='chacovol':
         if atlas == 'fs86subj':
@@ -395,7 +543,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
             activation = a
     elif chaco_type=='chacoconn':
         if atlas == 'fs86subj':
-                  
+                
             idx=np.ones(shape=(3192,1), dtype='bool')
             idx[cols]=False # set SC weights that are features to be 1
             idx=idx.flatten()
@@ -469,7 +617,8 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
             inds = np.triu_indices(268, k=1)
             shen268_counts[inds] = activation
             activation = shen268_counts
-    return activation
+        
+    return activation, beta_coeffs
 
 def create_outer_cv(outer_cv_id):
     if outer_cv_id=="1": # random
@@ -521,7 +670,7 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, 
         logprint('\n\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ PERMUTATION: {}/{} ~ ~ ~ ~ ~ ~ ~ ~ ~ \n\n'.format(n, nperms))
         
         activation_weights=[]
-        
+        beta_coeffs_weights=[]
         for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X, Y, group)):
             
             inner_cv = create_inner_cv(inner_cv_id,n)
@@ -550,16 +699,21 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, 
                 if models_tested[0] == 'ridge':
                     cols = mdl['featselect'].get_support(indices=True)
                     ## HAUFE TRANSFORMS:
-                    activation = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
+                    activation, beta_coeffs = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
                     activation_weights.append(activation)
+                    beta_coeffs_weights.append(beta_coeffs)
+                    print('saving beta coeffs')
                 elif models_tested[0] == 'ridge_nofeatselect':
                     print('yabadabadoo')
                     cols = [0, 1, 2, 3, 4, 5]
                     ## HAUFE TRANSFORMS:
-                    activation = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
+                    activation, beta_coeffs = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
                     activation_weights.append(activation)
+                    beta_coeffs_weights.append(beta_coeffs)
+
                 else:
                     activation_weights=[]
+                    beta_coeffs_weights=[]
 
 
                 y_pred= mdl.predict(X_test)
@@ -592,7 +746,8 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, 
         np.save(results_path+ output_path +filename + "_scores.npy", explained_var)
         np.save(results_path+output_path+ filename + "_model.npy", models)
         np.save(results_path+output_path+ filename + "_correlations.npy", correlations)
-       
+        np.save(results_path+output_path+ filename + "_beta_coeffs.npy", beta_coeffs_weights)
+
         np.save(results_path+output_path+filename + "_activation_weights.npy", activation_weights)
 
         np.save(results_path+output_path+ filename + "_model_labels.npy", mdls_labels)
@@ -805,6 +960,9 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
     
     if atlas == 'lesionload_all':
         varimpts_allperms = np.zeros(shape=(nperms, 6))
+        mean_betas_allperms = np.zeros(shape=(nperms, 6))
+        std_betas_allperms = np.zeros(shape=(nperms,6))
+        betas_allperms = np.zeros(shape=(nperms,6))
     if chaco_type=='chacoconn':
         if atlas == 'fs86subj':
             varimpts_allperms = np.empty(shape=(0, 86, 86))
@@ -828,7 +986,7 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
             r2scores_ensemble=np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_scores.npy',allow_pickle=True)
             correlation_ensemble = np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_correlations_ensemble.npy',allow_pickle=True)
             #varimpts_ensemble=np.load(rootname +'_perm'+ str(n) +  '_ensemble'+ '_activation_weights.npy',allow_pickle=True)
-            mdl=np.load(rootname +'_perm'+ str(n) + '_ensemble'+  '_model.npy',allow_pickle=True)
+            #mdl=np.load(rootname +'_perm'+ str(n) + '_ensemble'+  '_model.npy',allow_pickle=True)
             r2scores_allperms[n,] = r2scores_ensemble
             correlation_allperms[n,] = correlation_ensemble
             
@@ -838,10 +996,16 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
             r2scores=np.load(rootname +'_perm'+ str(n) + '_scores.npy',allow_pickle=True)
             correlation = np.load(rootname +'_perm'+ str(n) +'_correlations.npy',allow_pickle=True)
             varimpts=np.load(rootname +'_perm'+ str(n) + '_activation_weights.npy',allow_pickle=True)
-            
+            betas=np.load(rootname +'_perm'+ str(n) + '_beta_coeffs.npy',allow_pickle=True)
+
             if atlas == 'lesionload_all':
                 # bc there is no feature selection, we can average the weights of the lesioad load CSTs together together.
                 varimpts_allperms[n,]=np.mean(varimpts,axis=0)
+                
+                mean_betas_allperms[n,]=np.mean(betas,axis=0)
+                std_betas_allperms[n,]=np.std(betas,axis=0)
+                betas_allperms[n,]=np.mean(betas,axis=0)
+                
             if atlas == 'fs86subj' or atlas == 'shen268':
                 # there is feature selection. so let's concatenate the outer loop features together and only look at features that are included in >50% of the outer folds
                 varimpts_allperms=np.concatenate((varimpts_allperms,varimpts),axis=0)
@@ -868,11 +1032,12 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
     # in addition to creating outputs below \/
     if crossval == '2': # leave one site out
         # have to do this here, i guess.
-        
+        print('skipping')
         for site in range(0,n_outer_folds):
             # oh jeez
             if ensemble=='none':
-                site_size = np.load(rootname_truepred +'_perm0_outerfold'+str(site) +'_true.npy', allow_pickle=True).shape[0]
+                print('skipping..')
+                #site_size = np.load(rootname_truepred +'_perm0_outerfold'+str(site) +'_true.npy', allow_pickle=True).shape[0]
                 #true_array = np.zeros(shape=(site_size,nperms))
                 #pred_array = np.zeros(shape=(site_size,nperms))
 
@@ -915,8 +1080,11 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
         np.savetxt(rootname_truepred +'_meanfeatureweight_allperms_99.txt', mean_featureweight_allperms_99)
         
     if atlas =='lesionload_all':
-         np.savetxt(rootname_truepred +'_meanfeatureweight_allperms.txt', np.mean(varimpts_allperms,axis=0))   
- 
+        np.savetxt(rootname_truepred +'_meanfeatureweight_allperms.txt', np.mean(varimpts_allperms,axis=0))   
+        np.savetxt(rootname_truepred +'_meanbetas_allperms.txt', np.mean(mean_betas_allperms,axis=0))   
+        np.savetxt(rootname_truepred +'_stdbetas_allpearms.txt', np.mean(std_betas_allperms,axis=0))   
+        np.savetxt(rootname_truepred +'_betas.txt', betas_allperms)
+
     np.savetxt(rootname_truepred + '_r2_scores.txt', r2scores_allperms)
     np.savetxt(rootname_truepred +'_correlations.txt', correlation_allperms)   
           

@@ -469,7 +469,10 @@ def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_va
     
     rootname_truepred = results_path + output_path + '/{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
     meanfeatureweights = np.loadtxt(rootname_truepred +'_meanfeatureweight_allperms.txt')
-    
+    meanbetas= np.loadtxt(rootname_truepred +'_meanbetas_allperms.txt')
+    stdbetas = np.loadtxt(rootname_truepred + '_stdbetas_allpearms.txt')
+    betas = np.loadtxt(rootname_truepred + '_betas.txt')
+
     # Change the colour of the boxes to match the SMATT figure.
     m1 = (89/255, 196/255, 89/255) # green
     s1 = (228/255, 212/255, 74/255) # yellow
@@ -485,13 +488,14 @@ def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_va
     print('Saving figures with filename: {}'.format(path))
     ylabel = 'Feature importance (haufe-transformed)'
     path_file = path + '/'+ analysis_id + '_smatt_featureimpt.png'
+    print(path_file)
     
     colors = (m1, pmd, pmv, s1, sma, psma)
-    data = meanfeatureweights
-   
+    
+    data1 = meanfeatureweights
     fig, ax = plt.subplots(ncols=1, figsize =(7, 7))
     
-    bp = ax.bar([0, 1, 2, 3, 4, 5], data)
+    bp = ax.bar([0, 1, 2, 3, 4, 5], data1)
     # Graph title
     ax.set_title(title, fontsize=14)
     # Label y-axis
@@ -503,11 +507,45 @@ def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_va
     ax.tick_params(axis='x', which='major', length=0)
     # Show x-axis minor ticks
     xticks = [0.5] + [x + 0.5 for x in ax.get_xticks()]
-    ax.set_xticks(range(len(data)))
+    ax.set_xticks(range(len(data1)))
     # Clean up the appearance
     ax.tick_params(axis='x', which='minor', length=3, width=1)
 
     for patch, color in zip(bp, colors):
        patch.set_facecolor(color)       
+       
+    plt.savefig(path_file, bbox_inches ='tight')
+    
+    data2 = betas
+    
+    path_file = path + '/'+ analysis_id + '_smatt_betas.png'
+    ylabel = 'Beta coefficients'
+    fig, ax = plt.subplots(ncols=1, figsize =(7, 7))
+    
+    bp = ax.boxplot(data2, widths=0.6, patch_artist=True)
+    # Graph title
+    ax.set_title(title, fontsize=14)
+    # Label y-axis
+    ax.set_ylabel(ylabel,fontsize=14)
+    # Label x-axis ticks
+    ax.set_xticklabels(xticklabels,rotation=90,fontsize=14)
+
+    # Hide x-axis major ticks
+    ax.tick_params(axis='x', which='major', length=0)
+    # Show x-axis minor ticks
+    xticks = [0.5] + [x + 0.5 for x in ax.get_xticks()]
+    ax.set_xticks(xticks, minor=True)
+    # Clean up the appearance
+    ax.tick_params(axis='x', which='minor', length=3, width=1)
+
+    # Change the colour of the boxes to Seaborn's 'pastel' palette
+    for patch, color in zip(bp['boxes'], colors):
+        patch.set_facecolor(color)
+        patch.set_edgecolor(color)
+    
+    plt.setp(bp['medians'], color='k')
+ 
+    # Colour of the median lines
+    
        
     plt.savefig(path_file, bbox_inches ='tight')
