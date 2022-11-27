@@ -360,7 +360,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
                 a=np.insert(a, zeroidx[k],0)
                 k=k+1
             
-            activation = a
+            beta_coeffs = a
         elif atlas == 'shen268':
             
             idx=np.ones(shape=(268,1), dtype='bool')
@@ -394,6 +394,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
                 k=k+1
             
             activation = a
+            beta_coeffs = a
     elif chaco_type=='chacoconn':
         if atlas == 'fs86subj':
                 
@@ -433,7 +434,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
             fs86_counts = np.zeros((86, 86))
             inds = np.triu_indices(86, k=1)
             fs86_counts[inds] = activation
-            activation = fs86_counts
+            beta_coeffs = fs86_counts
         elif atlas == 'shen268':
             idx=np.ones(shape=(25056,1), dtype='bool')
             idx[cols]=False # set SC weights that are features to be 1
@@ -473,6 +474,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
         
 
     # then transform the haufe activations
+    activation=np.matmul(cov_x,weight)*(1/cov_y)
 
     if chaco_type =='chacovol':
         if atlas == 'fs86subj':
@@ -700,9 +702,10 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, 
                     cols = mdl['featselect'].get_support(indices=True)
                     ## HAUFE TRANSFORMS:
                     activation, beta_coeffs = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
+                    print(beta_coeffs.shape)
                     activation_weights.append(activation)
                     beta_coeffs_weights.append(beta_coeffs)
-                    print('saving beta coeffs')
+                    
                 elif models_tested[0] == 'ridge_nofeatselect':
                     print('yabadabadoo')
                     cols = [0, 1, 2, 3, 4, 5]
@@ -971,8 +974,12 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
     elif chaco_type=='chacovol':
         if atlas == 'fs86subj':
             varimpts_allperms = np.empty(shape=(0, 86))
+            betas_allperms = np.zeros(shape=(0,86))
+
         if atlas == 'shen268':
             varimpts_allperms = np.empty(shape=(0, 268))
+            betas_allperms = np.zeros(shape=(0,268))
+
         
         
     correlation_allperms=np.zeros(shape=(nperms, n_outer_folds))
@@ -1008,7 +1015,10 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
                 
             if atlas == 'fs86subj' or atlas == 'shen268':
                 # there is feature selection. so let's concatenate the outer loop features together and only look at features that are included in >50% of the outer folds
+
                 varimpts_allperms=np.concatenate((varimpts_allperms,varimpts),axis=0)
+                
+                betas_allperms=np.concatenate((betas_allperms,betas),axis=0)
 
             mdl=np.load(rootname +'_perm'+ str(n) + '_model.npy',allow_pickle=True)
             
@@ -1065,6 +1075,7 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
         n_90_feats= varimpts_allperms[:, nonzero_outerfolds > threshold_90].shape
         n_99_feats= varimpts_allperms[:, nonzero_outerfolds > threshold_99].shape
 
+        
         print('\n{}/{} features were incorporated in 50% of outer folds.'.format(n_50_feats[1],varimpts_allperms.shape[1]))
         print('\n{}/{} features were incorporated in 90% of outer folds.'.format(n_90_feats[1],varimpts_allperms.shape[1]))
         print('\n{}/{} features were incorporated in 99% of outer folds.'.format(n_99_feats[1],varimpts_allperms.shape[1]))
@@ -1075,9 +1086,19 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
         mean_featureweight_allperms_90 = mean_featureweight_allperms*(nonzero_outerfolds > threshold_90)
         mean_featureweight_allperms_99 = mean_featureweight_allperms*(nonzero_outerfolds > threshold_99)
         
+        mean_betas_allperms = np.mean(betas_allperms,axis=0)
+     
+        mean_betas_allperms_50 = mean_betas_allperms*(nonzero_outerfolds > threshold_50)
+        mean_betas_allperms_90 = mean_betas_allperms*(nonzero_outerfolds > threshold_90)
+        mean_betas_allperms_99 = mean_betas_allperms*(nonzero_outerfolds > threshold_99)
+
         np.savetxt(rootname_truepred +'_meanfeatureweight_allperms_50.txt', mean_featureweight_allperms_50)
         np.savetxt(rootname_truepred +'_meanfeatureweight_allperms_90.txt', mean_featureweight_allperms_90)
         np.savetxt(rootname_truepred +'_meanfeatureweight_allperms_99.txt', mean_featureweight_allperms_99)
+        
+        np.savetxt(rootname_truepred +'_meanbetas_allperms_50.txt', mean_betas_allperms_50)
+        np.savetxt(rootname_truepred +'_meanbetas_allperms_90.txt', mean_betas_allperms_90)
+        np.savetxt(rootname_truepred +'_meanbetas_allperms_99.txt', mean_betas_allperms_99)
         
     if atlas =='lesionload_all':
         np.savetxt(rootname_truepred +'_meanfeatureweight_allperms.txt', np.mean(varimpts_allperms,axis=0))   
@@ -1110,7 +1131,7 @@ def check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_
  
         else:
             #filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_scores.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
-            filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_activation_weights.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
+            filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_beta_coeffs.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
             
             if os.path.exists(filename):
                 print('File already exists in folder {}'.format(folder))

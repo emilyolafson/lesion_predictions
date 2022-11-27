@@ -99,24 +99,27 @@ if set(['6']).issubset(set(run_analyses)):
                 'analysis_id':'analysis_6'}
 
         run_models(**kwargs)
-
+        
+scenesdir = '/home/ubuntu/enigma/motor_predictions/wb_files/'
 run_analyses=['7']
 generate_figs_only = False # whether to run ML models or just generate figures
-workbench_vis = False # 
+workbench_vis = True # 
 boxplots = True
 if set(['7']).issubset(set(run_analyses)):  
         kwargs = {'covariates':['AGE', 'SEX', 'DAYS_POST_STROKE'], \
                 'results_path':'/home/ubuntu/enigma/results',\
                 'output_path': '/analysis_7',\
                 'models_tested': ['ridge'],
-                'lesionload_types': ['all'], \
+                'lesionload_types': ['none'], \
                 'crossval_types':['1'],\
                 'atlases':['shen268'],\
                 'nperms':100, \
                 'figs_only':generate_figs_only,\
                 'ensembles':['none'],\
                 'analysis_id':'analysis_7',\
-                'workbench_vis':workbench_vis}
+                'workbench_vis':workbench_vis,\
+                'scenesdir': scenesdir,\
+                'wbpath': wbpath}
 
         run_models(**kwargs)
         
