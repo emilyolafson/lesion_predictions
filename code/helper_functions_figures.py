@@ -8,22 +8,41 @@ import nibabel.processing
 import seaborn as sns
 import os
 import shutil
+from itertools import combinations
 
 
 
-def create_performance_figures(r2_scores, correlations,label, results_path, analysis_id):
+def create_performance_figures(r2_scores, correlations,label, results_path, analysis_id, subsets):
     
     title = ''
+    
+    label = list(map(lambda x: x.replace('lesionload_m1', 'M1 CST-LL'), label))
+    label = list(map(lambda x: x.replace('lesionload_all_2h', 'Bihemispheric all CST-LL'), label))
+
+    label = list(map(lambda x: x.replace('lesionload_all', 'Ipsilesional all CST-LL'), label))
+
+    label = list(map(lambda x: x.replace('fs86subj chacovol', 'FS 86-region ChaCo'), label))
+    label = list(map(lambda x: x.replace('shen268 chacovol', 'Shen 268-region ChaCo'), label))
+
     xticklabels = label
+
+    if len(subsets)>1:
+        n_sets = 2
+        print('two sets.')
+    else:
+        n_sets = 1
+        print('one set.')
+    
     path = results_path + '/' + analysis_id 
+    print('MAKING BOXPLOTS')
     print('Saving figures with filename: {}'.format(path))
     ylabel = 'R-squared'
     path_file = path + '/'+ analysis_id + '_boxplots_rsquared.png'
-    box_and_whisker(np.transpose(r2_scores), title, ylabel, xticklabels, path_file)
+    box_and_whisker(np.transpose(r2_scores), title, ylabel, xticklabels, path_file,n_sets)
     
-    ylabel = 'Correlations'
+    ylabel = 'Pearson correlation'
     path_file = path + '/'+ analysis_id + '_boxplots_correlations.png'
-    box_and_whisker(np.transpose(correlations), title, ylabel, xticklabels, path_file)
+    box_and_whisker(np.transpose(correlations), title, ylabel, xticklabels, path_file,n_sets)
 
 def create_performance_figures_loo(r2_scores, correlations,label, results_path, output_path, filename):
     font = {'family' : 'normal',
@@ -59,12 +78,12 @@ def create_performance_figures_loo(r2_scores, correlations,label, results_path, 
     plt.savefig(results_path + output_path + '/'+ filename + '.png')
     
     
-def box_and_whisker(data, title, ylabel, xticklabels, path):
+def box_and_whisker(data, title, ylabel, xticklabels, path,n_sets):
     """
     Create a box-and-whisker plot with significance bars.
     Source: https://rowannicholls.github.io/python/graphs/ax_based/boxplots_significance.html
     """
-    font = {'family' : 'normal',
+    font = {'family' : 'Arial',
             'size'   : 15}
     matplotlib.rc('font', **font)
 
@@ -76,12 +95,15 @@ def box_and_whisker(data, title, ylabel, xticklabels, path):
     
     bp = ax.boxplot(data, widths=0.6, patch_artist=True)
     # Graph title
-    ax.set_title(title, fontsize=14)
+    ax.set_title(title, fontname="Arial", fontsize=16)
     # Label y-axis
-    ax.set_ylabel(ylabel,fontsize=14)
+    ax.set_ylabel(ylabel,fontname="Arial", fontsize=20)
     # Label x-axis ticks
-    ax.set_xticklabels(xticklabels,rotation=90,fontsize=14)
-
+    ax.set_xticklabels(xticklabels,rotation=90,fontname="Arial",fontsize=20)
+    # Change y-tick fontsize
+    ax.tick_params(axis='y', labelsize=20)
+    ax.tick_params(axis='x', labelsize=20)
+   
     # Hide x-axis major ticks
     ax.tick_params(axis='x', which='major', length=0)
     # Show x-axis minor ticks
@@ -90,10 +112,15 @@ def box_and_whisker(data, title, ylabel, xticklabels, path):
     # Clean up the appearance
     ax.tick_params(axis='x', which='minor', length=3, width=1)
 
+    ncolors = np.int8(data.shape[1]/n_sets)
+
     # Change the colour of the boxes to Seaborn's 'pastel' palette
-    colors = sns.color_palette('Blues')
-    for patch, color in zip(bp['boxes'], colors):
-        patch.set_facecolor(color)
+    colors = sns.color_palette('Blues', ncolors)
+    indexes = np.arange(0, data.shape[1])
+    
+    for patch, i in zip(bp['boxes'], indexes):
+        # repeat colors if there's > 1 "sets" (e.g. crossval types, acute/chronic training)
+        patch.set_facecolor(colors[i % ncolors])
 
     # Colour of the median lines
     plt.setp(bp['medians'], color='k')
@@ -104,9 +131,38 @@ def box_and_whisker(data, title, ylabel, xticklabels, path):
     # Check from the outside pairs of boxes inwards
     ls = list(range(1, data.shape[1] + 1))
     
-    combinations = [(ls[x], ls[x + y]) for y in reversed(ls) for x in range((len(ls) - y))]
-    
-    for c in combinations:
+    if n_sets >1: #imagine nsets = 3
+        print(n_sets)
+        print('nsets math')
+        # first within each group compare with each other.
+        allsets = [] # store within-group combinations here.
+
+        counter = 0
+        groupsize = np.int8(data.shape[1]/n_sets)
+        
+        for set in range(0, n_sets):
+            end = groupsize+counter
+            set_combinations = list(combinations((ls[counter:end]), 2))
+
+            allsets = allsets + set_combinations
+            counter = counter + groupsize
+        
+        # then compare each 'corresponding' result between groups.
+        for set in range(0, np.int8(data.shape[1]/n_sets)): 
+            #set = 0
+            x_th_elements=[]
+            x=set
+            for ignore in range(0, n_sets): 
+                x_th_elements.append(ls[x])
+                x = x + groupsize 
+            
+            allsets = allsets + list(combinations(x_th_elements,2))
+            
+        combos = allsets
+    else:
+        combos = [(ls[x], ls[x + y]) for y in reversed(ls) for x in range((len(ls) - y))]
+        
+    for c in combos:
         data1 = data[:,c[0]-1]
         data2 = data[:,c[1]-1]
         #print(data2.shape)
@@ -115,7 +171,6 @@ def box_and_whisker(data, title, ylabel, xticklabels, path):
         if p < 0.05:
             significant_combinations.append([c, p])
             
-
     # Get info about y-axis
     bottom, top = ax.get_ylim()
     if bottom < 0:
@@ -195,7 +250,7 @@ def generate_wb_files(atlas, results_path, output_path, analysis_id, y_var,chaco
     workbench_dir =  '/home/ubuntu/enigma/motor_predictions/wb_files/workbench_ubuntu'
     
     textfiles_haufe = ['meanfeatureweight_allperms_50', 'meanfeatureweight_allperms_90', 'meanfeatureweight_allperms_99']
-    textfiles_betas = ['meanbetas_allperms_50', 'meanbetas_allperms_90', 'meanbetas_allperms_99']
+    textfiles_betas = ['meanbetas_allperms_0', 'meanbetas_allperms_50', 'meanbetas_allperms_90', 'meanbetas_allperms_99']
 
     for file in textfiles_haufe:
         
@@ -209,14 +264,14 @@ def generate_wb_files(atlas, results_path, output_path, analysis_id, y_var,chaco
         if scalar.shape[0]==86:
             
             # fs86 parcellation - surface files
-            atlas_file = nib.load(atlas_dir + 'fs86_dil1_allsubj_mode.nii.gz').get_fdata()
+            atlas_file = nib.load(atlas_dir + 'fs86_dil1_allsubj_mode_cort.nii.gz').get_fdata()
             nodes = np.unique(atlas_file)
             nodes = np.delete(nodes,0)
             data = np.zeros(atlas_file.shape, dtype=np.float32)
             for i,n in enumerate(nodes):
                 data[atlas_file == n] = scalar[i]
                 
-            sample_img = nib.load(atlas_dir + 'fs86_dil1_allsubj_mode.nii.gz')
+            sample_img = nib.load(atlas_dir + 'fs86_dil1_allsubj_mode_cort.nii.gz')
             save_file = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_haufe.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
             
             # store nifti header info for saving file
@@ -254,7 +309,7 @@ def generate_wb_files(atlas, results_path, output_path, analysis_id, y_var,chaco
             nib.save(imgnew, "subcortical_volumes.nii.gz")
             datapath =  "subcortical_volumes.nii.gz"
             newdata = nib.load("subcortical_volumes.nii.gz")
-            
+
             cc400 = nib.load(atlas_dir + "fs86_dil1_allsubj_mode.nii.gz")
             atlas2 = nib.load(atlas_dir + "fs86_dil1_allsubj_mode_subcort.nii.gz")
             
@@ -362,9 +417,12 @@ def generate_wb_files(atlas, results_path, output_path, analysis_id, y_var,chaco
             # fs86 parcellation - surface files
             atlas_file = nib.load(atlas_dir + 'fs86_dil1_allsubj_mode.nii.gz').get_fdata()
             nodes = np.unique(atlas_file)
+            
             nodes = np.delete(nodes,0)
             data = np.zeros(atlas_file.shape, dtype=np.float32)
             for i,n in enumerate(nodes):
+                if n<18:
+                    continue
                 data[atlas_file == n] = scalar[i]
                 
             sample_img = nib.load(atlas_dir + 'fs86_dil1_allsubj_mode.nii.gz')
@@ -431,10 +489,14 @@ def generate_wb_files(atlas, results_path, output_path, analysis_id, y_var,chaco
         elif scalar.shape[0]==268:
             # fs86 parcellation - surface files
             atlas_file = nib.load(atlas_dir + 'shen268_MNI1mm_dil1.nii.gz').get_fdata()
+            subcorticalshen = np.loadtxt(atlas_dir + 'shen_subcorticalROIs.txt')
+            print(subcorticalshen)
             nodes = np.unique(atlas_file)
             nodes = np.delete(nodes,0)
             data = np.zeros(atlas_file.shape, dtype=np.float32)
             for i,n in enumerate(nodes):
+                if n in subcorticalshen:
+                    continue
                 data[atlas_file == n] = scalar[i]
                 
             sample_img = nib.load(atlas_dir + 'shen268_MNI1mm_dil1.nii.gz')
@@ -582,7 +644,7 @@ def generate_wb_figures_setup(hcpdir, scenesdir):
 def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subset, model_tested,crossval,scenesdir, wbpath):
     
     textfiles_haufe = ['meanfeatureweight_allperms_50', 'meanfeatureweight_allperms_90', 'meanfeatureweight_allperms_99']
-    textfiles_betas = ['meanbetas_allperms_50', 'meanbetas_allperms_90', 'meanbetas_allperms_99']
+    textfiles_betas = ['meanbetas_allperms_0','meanbetas_allperms_50', 'meanbetas_allperms_90', 'meanbetas_allperms_99']
 
     for file in textfiles_haufe:
 
@@ -601,6 +663,7 @@ def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subs
         # keep the metadata for reference gifti, replace with data from actual feature file
         giftimetaR = nib.load(scenesdir + 'surfmetadataR.shape.gii') # reference gifti
         giftimetaR.darrays[0].data = nib.load(surface_fileR).darrays[0].data
+        
         newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaR.header, extra=None, file_map = giftimetaR.file_map, labeltable=giftimetaR.labeltable, darrays=giftimetaR.darrays, meta = giftimetaR.meta, version='1.0')
         nib.save(newgifti, surface_fileR)
         giftimetaL = nib.load(scenesdir + 'surfmetadataL.shape.gii') # reference gifti
@@ -662,34 +725,34 @@ def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subs
         figurefile = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_subcortical_haufe_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
         scenefile = results_path+ '/'+  analysis_id +'/subcortical_scene.scene'
         print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 1500 300'.format(wbpath, scenefile, figurefile))
+        #os.system('bash {}/wb_command -show-scene {} 1 {} 1500 300'.format(wbpath, scenefile, figurefile))
             
         # surface scenes
         
         figurefile = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_surfaces_haufe_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
         scenefile = results_path+ '/'+  analysis_id +'/surfaces_scene.scene'
         print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 1300 900'.format(wbpath, scenefile, figurefile))
+        #os.system('bash {}/wb_command -show-scene {} 1 {} 1300 900'.format(wbpath, scenefile, figurefile))
         
         figurefile = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_rowsurfaces_haufe_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
         scenefile = results_path+ '/'+  analysis_id +'/rowsurfaces_scene.scene'
         print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
+        #os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
         
         figurefile = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_dorsalsurfaces_haufe_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
         scenefile = results_path+ '/'+  analysis_id +'/dorsalsurfaces_scene.scene'
         print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
+        #os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
         
         figurefile = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_medialsurfaces_haufe_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
         scenefile = results_path+ '/'+  analysis_id +'/medialsurfaces_scene.scene'
         print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
+        #os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
         
         figurefile = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_lateralsurfaces_haufe_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
         scenefile = results_path+ '/'+  analysis_id +'/lateralsurfaces_scene.scene'
         print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
+        #os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
         
     for file in textfiles_betas:
 
@@ -715,6 +778,7 @@ def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subs
         newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaL.header, extra=None, file_map = giftimetaL.file_map, labeltable=giftimetaL.labeltable, darrays=giftimetaL.darrays, meta = giftimetaL.meta, version='1.0')
         nib.save(newgifti, surface_fileL)
 
+                
         # make copy of the scenes file that we modify for each figure.
         shutil.copy(scenesdir+'subcort_scene_edit.scene', results_path+ '/'+  analysis_id +'/subcortical_scene.scene') 
         shutil.copy(scenesdir+'landscape_surfaces_edit.scene', results_path+ '/'+  analysis_id +'/surfaces_scene.scene') 
@@ -783,22 +847,22 @@ def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subs
         figurefile = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_rowsurfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
         scenefile = results_path+ '/'+  analysis_id +'/rowsurfaces_scene.scene'
         print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
+        #os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
         
         figurefile = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_dorsalsurfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
         scenefile = results_path+ '/'+  analysis_id +'/dorsalsurfaces_scene.scene'
         print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
+        os.system('bash {}/wb_command -show-scene {} 1 {} 10000 1300'.format(wbpath, scenefile, figurefile))
         
         figurefile = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_medialsurfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
         scenefile = results_path+ '/'+  analysis_id +'/medialsurfaces_scene.scene'
         print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
+        #os.system('bash {}/wb_command -show-scene {} 1 {} 4000 1000'.format(wbpath, scenefile, figurefile))
         
         figurefile = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_lateralsurfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
         scenefile = results_path+ '/'+  analysis_id +'/lateralsurfaces_scene.scene'
         print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 1300 250'.format(wbpath, scenefile, figurefile))
+        #os.system('bash {}/wb_command -show-scene {} 1 {} 4000 1000'.format(wbpath, scenefile, figurefile))
         
         
 def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval):
@@ -808,7 +872,13 @@ def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_va
     meanbetas= np.loadtxt(rootname_truepred +'_meanbetas_allperms.txt')
     stdbetas = np.loadtxt(rootname_truepred + '_stdbetas_allpearms.txt')
     betas = np.loadtxt(rootname_truepred + '_betas.txt')
-
+    
+    title = ''
+    path = results_path + '/' + analysis_id 
+    print('Saving figures with filename: {}'.format(path))
+    ylabel = 'Feature importance (haufe-transformed)'
+    path_file = path + '/'+ analysis_id + '_' + atlas + '_' + subset + '_crossval' + crossval +  '_smatt_featureweights.png'
+    
     # Change the colour of the boxes to match the SMATT figure.
     m1 = (89/255, 196/255, 89/255) # green
     s1 = (228/255, 212/255, 74/255) # yellow
@@ -817,27 +887,26 @@ def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_va
     sma = (76/255, 73/255, 231/255) # blue
     psma = (221/255, 52/255, 50/255) # red
     
-    xticklabels = ['M1','PMd','PMv','S1','SMA','preSMA']
+    if atlas == 'lesionload_all':
+        xticklabels = ['M1','PMd','PMv','S1','SMA','preSMA']
+        colors = (m1, pmd, pmv, s1, sma, psma)
+        xsize= [0, 1, 2, 3, 4, 5]
+    elif atlas == 'lesionload_all_2h':
+        xticklabels = ['L-M1','L-PMd','L-PMv','L-S1','L-SMA','L-preSMA','R-M1','R-PMd','R-PMv','R-S1','R-SMA','R-preSMA']
+        colors = (m1, pmd, pmv, s1, sma, psma,m1, pmd, pmv, s1, sma, psma)
+        xsize = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
-    title = ''
-    path = results_path + '/' + analysis_id 
-    print('Saving figures with filename: {}'.format(path))
-    ylabel = 'Feature importance (haufe-transformed)'
-    path_file = path + '/'+ analysis_id + '_smatt_featureimpt.png'
-    print(path_file)
-    
-    colors = (m1, pmd, pmv, s1, sma, psma)
-    
+
     data1 = meanfeatureweights
     fig, ax = plt.subplots(ncols=1, figsize =(7, 7))
     
-    bp = ax.bar([0, 1, 2, 3, 4, 5], data1)
+    bp = ax.bar(xsize, data1)
     # Graph title
-    ax.set_title(title, fontsize=14)
+    ax.set_title(title,fontname="Arial", fontsize=16)
     # Label y-axis
-    ax.set_ylabel(ylabel,fontsize=14)
+    ax.set_ylabel(ylabel,fontname="Arial", fontsize=16)
     # Label x-axis ticks
-    ax.set_xticklabels(xticklabels,rotation=90,fontsize=14)
+    ax.set_xticklabels(xticklabels,rotation=90,fontname="Arial", fontsize=18)
 
     # Hide x-axis major ticks
     ax.tick_params(axis='x', which='major', length=0)
@@ -852,19 +921,26 @@ def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_va
        
     plt.savefig(path_file, bbox_inches ='tight')
     
+    
+    # plot untransformed betra coefficitsn
     data2 = betas
     
-    path_file = path + '/'+ analysis_id + '_smatt_betas.png'
+    path_file = path + '/'+ analysis_id + '_' + atlas + '_' + subset + '_crossval' + crossval +  '_smatt_betas.png'
     ylabel = 'Beta coefficients'
     fig, ax = plt.subplots(ncols=1, figsize =(7, 7))
     
     bp = ax.boxplot(data2, widths=0.6, patch_artist=True)
     # Graph title
-    ax.set_title(title, fontsize=14)
+    ax.set_title(title,fontname="Arial", fontsize=16)
     # Label y-axis
-    ax.set_ylabel(ylabel,fontsize=14)
+    ax.set_ylabel(ylabel,fontname="Arial", fontsize=16)
     # Label x-axis ticks
-    ax.set_xticklabels(xticklabels,rotation=90,fontsize=14)
+    
+    ax.set_xticklabels(xticklabels,rotation=90,fontname="Arial", fontsize=18)
+    
+    # Change y-tick fontsize
+    ax.tick_params(axis='y', labelsize=16)
+    #ax.set_yticklabels(yticklabs,rotation=90,fontname="Arial", fontsize=18)
 
     # Hide x-axis major ticks
     ax.tick_params(axis='x', which='major', length=0)
