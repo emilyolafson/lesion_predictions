@@ -2,11 +2,9 @@
 import sys; sys.path
 import pandas as pd
 import numpy as np 
-import os
 import pickle
 from helper_functions import *
 import glob
-#import label encoder
 from sklearn import preprocessing 
 from sklearn.model_selection import LeaveOneGroupOut
 import logging
@@ -41,6 +39,10 @@ def find_missing_scans(ids, parc, chacovar,LESIONMASK_PATH):
     return ids_fullpaths_nonemissing, missinglist
 
 def load_chaco_data(ids,chacovar):
+    # This function takes in a list of IDs and a string containing the type of chaco data (either 'chacovol' or 'chacoconn')
+    # and returns a matrix of the chaco data. For 'chacoconn' data, the matrix is the upper triangular portion of the adjacency
+    # matrix with the diagonal set to 0. For 'chacovol' data, the matrix is the volume data for each subject.
+    
     for i in range(0,len(ids)):
         
         with open(ids[i], 'r+b') as e:
@@ -196,7 +198,7 @@ def create_data_set(csv_path=None, lesionmask_path = None, atlas=None, covariate
     else:
         covariates_list = []
         
-    all_ll_options = ['M1', 'all', 'none']
+    all_ll_options = ['M1', 'all', 'none', 'all_2h', 'slnm']
     
     if ll:
         if isinstance(ll, str):
@@ -221,6 +223,7 @@ def create_data_set(csv_path=None, lesionmask_path = None, atlas=None, covariate
     # find subjects who have motor scores but are missing scans.
 
     ids_fullpaths_nonemissing, missinglist = find_missing_scans(ids, parc, chacovar,LESIONMASK_PATH)
+    print(missinglist)
     df_final = remove_missing_scans(df_final,missinglist)  
 
     #logging.info('DF SHAPE AFTER REMOVAL OF MISSING SCANS:')
@@ -253,11 +256,17 @@ def create_data_set(csv_path=None, lesionmask_path = None, atlas=None, covariate
     # load lesionload
 
     llvars = ['M1_CST', 'PMd_CST', 'PMv_CST','S1_CST','SMA_CST','preSMA_CST']
+    ll_2h_vars =['L_M1_CST', 'L_PMd_CST', 'L_PMv_CST','L_S1_CST','L_SMA_CST','L_preSMA_CST','R_M1_CST', 'R_PMd_CST', 'R_PMv_CST','R_S1_CST','R_SMA_CST','R_preSMA_CST']
+    slnm_vars = ['sLNM_LL']
     logging.info('lesion load: ')
     if ll=='all':
         lesion_load = df_final.loc[:,llvars]
     elif ll=='M1':
         lesion_load=df_final.loc[:,'M1_CST']
+    elif ll=='all_2h':
+        lesion_load=df_final.loc[:,ll_2h_vars]
+    elif ll=='slnm':
+        lesion_load = df_final.loc[:,slnm_vars]
     elif ll=='none':
         lesion_load=[]
     

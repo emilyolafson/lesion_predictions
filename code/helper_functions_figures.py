@@ -13,11 +13,18 @@ from itertools import combinations
 
 
 def create_performance_figures(r2_scores, correlations,label, results_path, analysis_id, subsets):
-    
+    # The function create_performance_figures takes in the r2 scores, correlations, label, results path,
+    # analysis id, and subsets as input. 
+    # It formats the label by replacing certain substrings with more descriptive labels. 
+    # It then sets the range for the y-axis based on the analysis id and creates box and whisker plots for the r2 scores and correlations.
+    # It saves the plots with filenames that include the analysis id and the type of plot (r-squared or Pearson correlation). 
+    # It also takes in the number of sets and uses that to determine the layout of the plots.
+
     title = ''
     
     label = list(map(lambda x: x.replace('lesionload_m1', 'M1 CST-LL'), label))
     label = list(map(lambda x: x.replace('lesionload_all_2h', 'Bihemispheric all CST-LL'), label))
+    label = list(map(lambda x: x.replace('lesionload_slnm', 'sLNM-LL'), label))
 
     label = list(map(lambda x: x.replace('lesionload_all', 'Ipsilesional all CST-LL'), label))
 
@@ -33,16 +40,20 @@ def create_performance_figures(r2_scores, correlations,label, results_path, anal
         n_sets = 1
         print('one set.')
     
+    if analysis_id=='analysis_1':
+        range_y = 'analysis1'
+    if analysis_id=='analysis_2':
+        range_y = 'analysis2'
     path = results_path + '/' + analysis_id 
     print('MAKING BOXPLOTS')
     print('Saving figures with filename: {}'.format(path))
     ylabel = 'R-squared'
     path_file = path + '/'+ analysis_id + '_boxplots_rsquared.png'
-    box_and_whisker(np.transpose(r2_scores), title, ylabel, xticklabels, path_file,n_sets)
+    box_and_whisker(np.transpose(r2_scores), title, ylabel, xticklabels, path_file,n_sets,range_y)
     
     ylabel = 'Pearson correlation'
     path_file = path + '/'+ analysis_id + '_boxplots_correlations.png'
-    box_and_whisker(np.transpose(correlations), title, ylabel, xticklabels, path_file,n_sets)
+    box_and_whisker(np.transpose(correlations), title, ylabel, xticklabels, path_file,n_sets,range_y)
 
 def create_performance_figures_loo(r2_scores, correlations,label, results_path, output_path, filename):
     font = {'family' : 'normal',
@@ -78,11 +89,17 @@ def create_performance_figures_loo(r2_scores, correlations,label, results_path, 
     plt.savefig(results_path + output_path + '/'+ filename + '.png')
     
     
-def box_and_whisker(data, title, ylabel, xticklabels, path,n_sets):
-    """
-    Create a box-and-whisker plot with significance bars.
-    Source: https://rowannicholls.github.io/python/graphs/ax_based/boxplots_significance.html
-    """
+def box_and_whisker(data, title, ylabel, xticklabels, path,n_sets, range_y):
+    
+    # The function box_and_whisker takes in data (R-squared or correlation values for different model runs), a title for the plot, the y-axis label, 
+    # the x-axis tick labels, the path where the figure should be saved, the number of sets of data, and the range of y-values for the plot.
+    # It creates a box-and-whisker plot with significance bars, setting the figure quality and font size, labeling the axes and setting the tick sizes,
+    # hiding the major x-axis ticks and showing the minor ones, and coloring the boxes in the plot using Seaborn's 'pastel' palette.
+    # It then checks for statistical significance between the data sets, adding significance bars to the plot if necessary. 
+    # Finally, it saves the figure to the specified path.
+
+    # Source: https://rowannicholls.github.io/python/graphs/ax_based/boxplots_significance.html
+
     font = {'family' : 'Arial',
             'size'   : 15}
     matplotlib.rc('font', **font)
@@ -115,7 +132,7 @@ def box_and_whisker(data, title, ylabel, xticklabels, path,n_sets):
     ncolors = np.int8(data.shape[1]/n_sets)
 
     # Change the colour of the boxes to Seaborn's 'pastel' palette
-    colors = sns.color_palette('Blues', ncolors)
+    colors = sns.color_palette('colorblind', ncolors)
     indexes = np.arange(0, data.shape[1])
     
     for patch, i in zip(bp['boxes'], indexes):
@@ -172,11 +189,27 @@ def box_and_whisker(data, title, ylabel, xticklabels, path,n_sets):
             significant_combinations.append([c, p])
             
     # Get info about y-axis
-    bottom, top = ax.get_ylim()
-    if bottom < 0:
-        bottom = 0
+    bottom_actual, top_actual = ax.get_ylim()
+    if range_y == 'analysis1':
+        print('ANALYSIS 1')
+        if ylabel == 'Pearson correlation':
+            top = 0.5  
+            bottom = 0
+        elif ylabel == 'R-squared':
+            top = 0.3
+            bottom = 0
+            
+    if range_y == 'analysis2':
+        if ylabel == 'Pearson correlation':
+            top = 0.5  
+            bottom = 0
+        elif ylabel == 'R-squared':
+            print('test')
+            top = 0.3
+            bottom = 0
+        
     yrange = top - bottom
-
+    #yrange = 1.75 -0
     # Significance bars
     for i, significant_combination in enumerate(significant_combinations):
         # Columns corresponding to the datasets of interest
@@ -185,11 +218,11 @@ def box_and_whisker(data, title, ylabel, xticklabels, path,n_sets):
         # What level is this bar among the bars above the plot?
         level = len(significant_combinations) - i
         # Plot the bar
-        bar_height = (yrange * 0.08 * level) + top
-        bar_tips = bar_height - (yrange * 0.02)
+        bar_height = (top_actual * 0.03 * level) + top_actual
+        bar_tips = bar_height - (yrange * 0.01)
         plt.plot(
             [x1, x1, x2, x2],
-            [bar_tips, bar_height, bar_height, bar_tips], lw=1, c='k')
+            [bar_tips, bar_height, bar_height, bar_tips], lw=0.5, c='k')
         # Significance level
         p = significant_combination[1]
         if p < 0.001:
@@ -198,17 +231,32 @@ def box_and_whisker(data, title, ylabel, xticklabels, path,n_sets):
             sig_symbol = '**'
         elif p < 0.05:
             sig_symbol = '*'
-        text_height = bar_height + (yrange * 0.01)
-        plt.text((x1 + x2) * 0.5, text_height, sig_symbol, ha='center', c='k',fontsize=10)
+        text_height = bar_height - 0.001
+        plt.text((x1 + x2) * 0.5, text_height, sig_symbol, ha='center', c='k',fontsize=6)
 
     # Adjust y-axis
     bottom, top = ax.get_ylim()
     if bottom < 0:
         bottom = 0
     yrange = top - bottom
-    ax.set_ylim(bottom - 0.1 * yrange, top)
-    
-
+    if range_y == 'analysis1':
+        #ax.set_ylim(bottom - 0.1 * yrange, top)
+        if ylabel == 'Pearson correlation':
+            ax.set_ylim(0, 0.65)
+        elif ylabel == 'R-squared':
+            ax.set_ylim(0, 0.35)
+    if range_y == 'analysis2':
+        #ax.set_ylim(bottom - 0.1 * yrange, top)
+        if ylabel == 'Pearson correlation':
+            ax.set_ylim(0, 0.65)
+        elif ylabel == 'R-squared':
+            ax.set_ylim(0, 0.35)
+    if range_y == 'analysis4':
+        #ax.set_ylim(bottom - 0.1 * yrange, top)
+        if ylabel == 'Pearson correlation':
+            ax.set_ylim(0, 1.25)
+        elif ylabel == 'R-squared':
+            ax.set_ylim(-0.2, 0.8)
     # Annotate sample size below each box
     #for i, dataset in enumerate(data):
         #sample_size = len(dataset)
@@ -487,10 +535,14 @@ def generate_wb_files(atlas, results_path, output_path, analysis_id, y_var,chaco
             nib.save(newdata_subcort, save_file)
 
         elif scalar.shape[0]==268:
-            # fs86 parcellation - surface files
+            # It first loads the scalar data from the text file, and then loads the atlas file for the shen268 parcellation. 
             atlas_file = nib.load(atlas_dir + 'shen268_MNI1mm_dil1.nii.gz').get_fdata()
             subcorticalshen = np.loadtxt(atlas_dir + 'shen_subcorticalROIs.txt')
-            print(subcorticalshen)
+            
+            # It then creates an array of nodes by extracting the unique values from the atlas file and removing the value 0. 
+            # The code then creates an empty array of data with the same shape as the atlas file.    
+            # It then iterates over the nodes, and if the node is not in the list of subcortical regions, it assigns the corresponding
+            # value in the scalar array to the data array.    
             nodes = np.unique(atlas_file)
             nodes = np.delete(nodes,0)
             data = np.zeros(atlas_file.shape, dtype=np.float32)
@@ -559,7 +611,7 @@ def generate_wb_files(atlas, results_path, output_path, analysis_id, y_var,chaco
             save_file = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
 
             nib.save(newdata_subcort, save_file)
-        
+    
 def generate_wb_figures_setup(hcpdir, scenesdir):
     # update MNI volumetric template path (rel path stored in wb)
     # Read in the file
