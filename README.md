@@ -18,7 +18,7 @@ Calculated as the number of lesioned voxels that intersect with the ipsilesional
 # SMATT CST lesion load
 ![SMATT_pic](figures/smatt_template.png)
 Calcualte the lesion load on all ipsilesional corticospinal tracts originating from M1 (primary motor cortex), S1 (sensorimotor cortex), SMA (supplementary motor area), pre-SMA (pre-supplementary motor area), ventral premotor cortex (PMv), and dorsal premotor cortex (PMd).
-Calculated as the number of lesioned voxels that intersect with each ipsilesional tract.
+Calculated as the proportion of lesioned voxels that intersect with each ipsilesional tract.
 
 Template: [Sensorimotor Area Tract Template (SMATT)](http://lrnlab.org/) 
 
