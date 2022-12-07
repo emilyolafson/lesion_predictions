@@ -163,3 +163,30 @@ end
 df = [df, smatt_ll_2h]
 
 writetable(df,'~/GIT/ENIGMA/data/Behaviour_Information_ALL_April7_2022_sorted_CST_12_ll.csv')
+tab=readtable('~/GIT/ENIGMA/data/Behaviour_Information_ALL_April7_2022_sorted_CST_12_ll.csv')
+
+sma = tab.R_SMA_CST;
+m1 = tab.R_M1_CST;
+pmv = tab.R_PMv_CST;
+
+
+sma_s = (sma - mean(sma))/norm(sma)
+m1_s = (m1 - mean(m1))/norm(m1)
+pmv_s = (pmv - mean(pmv))/norm(pmv)
+
+mean(sma_s)
+mean(m1_s)
+mean(pmv_s)
+
+std(sma_s)
+std(m1_s)
+std(pmv_s)
+
+mean(sma)
+mean(m1)
+mean(pmv)
+
+std(sma)
+std(m1)
+std(pmv)
+
