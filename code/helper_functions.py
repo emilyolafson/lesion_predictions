@@ -195,7 +195,7 @@ def feature_select_correlation(x_train, x_test, y, a):
     return x_train_featselect,x_test_featselect, ind
 
 def determine_featselect_range(X):
-    #This function appears to be determining the range of values to use for the k parameter in the SelectKBest
+    #This function determines the range of values to use for the k parameter in the SelectKBest
     # feature selection method. The k parameter specifies the number of top-ranking features to select.
 
     # The range of values is determined using the number of columns in the input matrix X, with a minimum value of
@@ -210,7 +210,7 @@ def determine_featselect_range(X):
     return k_range
 
 def get_models(model_type='regression', model_list=None):
-    # This code appears to define a function named get_models() that takes two arguments: model_type and model_list. 
+    # This code defines a function named get_models() that takes two arguments: model_type and model_list. 
     # The function uses the model_type argument to determine which set of models to return. If model_type is set to 'regression',
     # the function will return a list of regression models. If model_type is set to 'classification', the function 
     # will return a list of classification models. The model_list argument is used to filter the models that are returned 
@@ -336,7 +336,7 @@ def inner_loop(mdl, mdl_label, X, Y, group, inner_cv, n_jobs):
     return best_mdl
 
 def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, X):
-    # This code appears to implement a transformation for the results of a machine learning model trained on brain imaging data. 
+    # This code mplements a transformation for the results of a machine learning model trained on brain imaging data. 
     # The function takes as input the training data (X_train, y_train), the indices of the columns in the training data used as features (cols),
     # the trained model (mdl), the label of the model (mdl_label), the type of cross-validation used (chaco_type), the atlas used (atlas),
     # and the full data matrix (X).
@@ -685,36 +685,20 @@ def create_inner_cv(inner_cv_id, perm):
         inner_cv = GroupShuffleSplit(train_size = 0.8)
     return inner_cv
     
-def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null, output_path, acute_data):
-    # This code appears to implement a cross-validation procedure for training and evaluating machine learning models on brain imaging data. 
+def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null, output_path):
+    # This code implements a cross-validation procedure for training and evaluating machine learning models on brain imaging data. 
     # The function takes as input the features (x), labels (Y), grouping information (group), inner and outer cross-validation indices 
     # (inner_cv_id, outer_cv_id), a list of models to test (models_tested), an atlas of the brain (atlas), the name of the dependent variable 
     # (y_var), a string indicating the type of structural disconnection (chaco_type), a subset of the data to use (subset), a flag indicating whether
     # to save trained models (save_models), a path to save the results (results_path), the type of cross-validation (crossval_type), the number
-    # of permutations to run (nperms), a flag indicating whether to run a null model (null), a path to save the output (output_path), and acute
-    # data to use for training (acute_data).
+    # of permutations to run (nperms), a flag indicating whether to run a null model (null), a path to save the output (output_path).
     #
-    #The function first checks if acute_data is provided, and if so, prepares it for use in training the models. Then, 
-    # it prepares the features x for training by reshaping them based on the value of atlas. Next, it creates the outer cross-validation object
+    #The function first prepares the features x for training by reshaping them based on the value of atlas. Next, it creates the outer cross-validation object
     # and splits the data into training and testing sets using the provided indices. Then, it loops through the different models specified in
     # models_tested and trains and evaluates each model using the training and testing sets. The function returns the trained models, 
     # explained variance, variable importance, correlations, and size of the test group for each model.
     # - ChatGPT
 
-    if type(acute_data) is dict:
-        X_acute = acute_data['X_acute']
-        Y_acute = acute_data['Y_acute']
-        C_acute = acute_data['C_acute']
-        lesion_load_acute = acute_data['lesion_load_acute']
-        site_acute = acute_data['site_acute']
-        if atlas == 'lesionload_m1' or atlas == 'lesionload_slnm':
-            Xa = np.array(lesion_load_acute).reshape(-1,1)
-        elif atlas == 'lesionload_all':
-            Xa = np.array(lesion_load_acute)
-        elif atlas == 'lesionload_all_2h':
-            Xa = np.array(lesion_load_acute)
-        else:
-            Xa = prepare_data(X_acute)
         
     if atlas =='lesionload_m1' or atlas == 'lesionload_slnm':
         X=np.array(x).reshape(-1,1)
@@ -749,16 +733,8 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, 
             
             X_train, X_test = X[train_id], X[test_id]
             y_train, y_test = Y[train_id], Y[test_id]
-            
-            print(type(acute_data))
-            if type(acute_data) is dict:
-                print('\nTraining on acute data.')
-                X_train = Xa
-                y_train = Y_acute
-                group_train, group_test = site_acute, group[test_id]
-                print('Acute data size: {} subjects, {} sites. \n'.format(X_train.shape[0], np.count_nonzero(np.unique(group_train))+1))
-            else:
-                group_train, group_test = group[train_id], group[test_id]
+   
+            group_train, group_test = group[train_id], group[test_id]
             
             logprint('Size of test group: {}'.format(group_test.shape[0]))
             logprint('Size of train group: {}'.format(group_train.shape[0]))
@@ -772,15 +748,10 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, 
             inner_cv = create_inner_cv(inner_cv_id,n)
             
             for mdl, mdl_label in zip(mdls, mdls_labels): 
-
                 mdl = inner_loop(mdl, mdl_label, X_train, y_train, group_train, inner_cv, 10)  
-                
                 #print('alpha: {}'.format(mdl.named_steps[mdl_label].alpha))
-                
                 mdl.fit(X_train, y_train)
-                
                 #print( mdl.named_steps[mdl_label].coef_)
-                
                 if models_tested[0] == 'ridge':
                     cols = mdl['featselect'].get_support(indices=True)
                     ## HAUFE TRANSFORMS:
@@ -788,7 +759,7 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, 
                     print(beta_coeffs.shape)
                     activation_weights.append(activation)
                     beta_coeffs_weights.append(beta_coeffs)
-                    
+
                 elif models_tested[0] == 'ridge_nofeatselect':
                     print('yabadabadoo')
                     if atlas =='lesionload_all':
@@ -810,9 +781,7 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, 
                 
                 expl=explained_variance_score(y_test, y_pred)
                 filename =  '/{}_{}_{}_{}_{}_crossval{}_perm{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
-                filename_plot = results_path + output_path + '/{}_{}_{}_{}_{}_crossval{}_perm{}_outerfold{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n, cv_fold)
 
-                #save_plots_true_pred(y_test,y_pred,filename_plot, np_pearson_cor(y_test,y_pred)[0] )
                 
                 variable_importance.append(mdl.named_steps[mdl_label].coef_)
                 correlations[mdl_idx, cv_fold] = np_pearson_cor(y_test,y_pred)[0]
@@ -844,24 +813,9 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, 
         np.save(results_path+output_path+filename + "_variable_impts.npy", variable_importance)
         np.save(results_path+ output_path+filename + "_test_group_sizes.npy", size_testgroup)
 
-def run_regression_ensemble(X1, C, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null,output_path,acute_data):
+def run_regression_ensemble(X1, C, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null,output_path):
     X2 = C
-    acute_data = []
-    
-    if type(acute_data) is dict:
-        X_acute = acute_data['X_acute']
-        Y_acute = acute_data['Y_acute']
-        C_acute = acute_data['C_acute'] # use chronic subject's demographic still - only thing acute is lesion data
-        lesion_load_acute = acute_data['lesion_load_acute']
-        site_acute = acute_data['site_acute']
-        if atlas == 'lesionload_m1' or atlas == 'lesionload_slnm':
-            X1a = np.array(lesion_load_acute).reshape(-1,1)
-        elif atlas == 'lesionload_all':
-            X1a = np.array(lesion_load_acute)
-        elif atlas == 'lesionload_all_2h':
-            X1a = np.array(lesion_load_acute)
-        else:
-            X1a = prepare_data(X_acute)
+
             
     logprint('\nRunning ensemble model!')
     
@@ -880,16 +834,9 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv_id, outer_cv_id, models_te
     
     models = np.zeros((len(models_tested), outer_cv_splits), dtype=object)
     explained_var  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
-    explained_var_lesion  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
-    explained_var_demog  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
 
-    variable_importance  = []
     correlations_ensemble  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
-    correlations_lesion  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
-    correlations_demog  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
     mean_abs_error = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
-    mean_abs_error_lesion = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
-    mean_abs_error_demog = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
 
     size_testgroup =[]
     for n in range(0,nperms):
@@ -905,15 +852,7 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv_id, outer_cv_id, models_te
 
             y_train, y_test = Y[train_id], Y[test_id]
 
-            print(type(acute_data))
-            if type(acute_data) is dict:
-                print('\nTraining on acute data.')
-                X1_train = X1a
-                y_train = Y_acute
-                group_train, group_test = site_acute, group[test_id]
-                print('Acute data size: {} subjects, {} sites. \n'.format(X1_train.shape[0], np.count_nonzero(np.unique(group_train))+1))
-            else:
-                group_train, group_test = group[train_id], group[test_id]
+            group_train, group_test = group[train_id], group[test_id]
             
             logprint('Size of test group: {}'.format(group_test.shape[0]))
             logprint('Size of train group: {}'.format(group_train.shape[0]))
@@ -942,23 +881,16 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv_id, outer_cv_id, models_te
             
             avg_pred = np.mean([y1_pred, y2_pred], axis=0)
             expl=explained_variance_score(y_test, avg_pred)
-            filename = '/{}_{}_{}_{}_{}_crossval{}_perm{}_ensemble'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
+            filename = '/{}_{}_{}_{}_{}_crossval{}_perm{}_ensemble_demog'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
             
-            filename_plot = results_path + output_path + '/{}_{}_{}_{}_{}_crossval{}_perm{}_outerfold{}_ensemble'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n, cv_fold)
-            #save_plots_true_pred(y_test,avg_pred, filename_plot, np_pearson_cor(y_test,avg_pred)[0] )
-
-            #variable_importance.append(mdl.named_steps[mdl_label].coef_)
             correlations_ensemble[mdl_idx, cv_fold] = np_pearson_cor(y_test,avg_pred)[0]
-            correlations_lesion[mdl_idx, cv_fold] = np_pearson_cor(y_test,y1_pred)[0]
-            correlations_demog[mdl_idx, cv_fold] = np_pearson_cor(y_test,y2_pred)[0]
+ 
             
             mean_abs_error[mdl_idx, cv_fold] = mean_absolute_error(y_test, avg_pred)
-            mean_abs_error_lesion[mdl_idx, cv_fold] = mean_absolute_error(y_test, y1_pred)
-            mean_abs_error_demog[mdl_idx, cv_fold] = mean_absolute_error(y_test, y2_pred)
+   
             
             explained_var[mdl_idx, cv_fold] =explained_variance_score(y_test, avg_pred)
-            explained_var_lesion[mdl_idx, cv_fold] = explained_variance_score(y_test, y1_pred)
-            explained_var_demog[mdl_idx, cv_fold] = explained_variance_score(y_test, y2_pred)
+
             logprint('\n')
             logprint('R^2 score (ensemble): {} '.format(np.round(explained_variance_score(y_test, avg_pred), 3)))
             logprint('Correlation (ensemble): {} '.format(np.round(np_pearson_cor(y_test,avg_pred)[0][0], 3)))
@@ -979,27 +911,257 @@ def run_regression_ensemble(X1, C, Y, group, inner_cv_id, outer_cv_id, models_te
         logprint('-------------- saving file w root name: {} -------------'.format(results_path + output_path + filename))
         logprint('\n\n')
         np.save(results_path+ output_path +  filename + "_scores_ensemble.npy", explained_var)
-        np.save(results_path+ output_path +  filename + "_scores_lesion.npy", explained_var_lesion)
-        np.save(results_path+ output_path + filename + "_scores_demog.npy", explained_var_demog)
+
         np.save(results_path+ output_path +  filename + "_scores.npy", explained_var)
 
         np.save(results_path+ output_path + filename + "_model.npy", models)
         np.save(results_path+ output_path + filename + "_correlations_ensemble.npy", correlations_ensemble)
-        np.save(results_path+ output_path +  filename + "_correlations_demog.npy", correlations_demog)
-        np.save(results_path+ output_path +  filename + "_correlations_lesion.npy", correlations_lesion)
+
         np.save(results_path+ output_path +  filename + "_mean_absolute_error.npy", mean_abs_error)
-        np.save(results_path+ output_path +  filename + "_mean_absolute_error_lesion.npy", mean_abs_error_lesion)
-        np.save(results_path+ output_path +  filename + "_mean_absolute_error_demog.npy", mean_abs_error_demog)
+
 
         np.save(results_path+ output_path +  filename + "_model_labels.npy", mdls_labels)
         np.save(results_path+ output_path +  filename + "_variable_impts.npy", variable_importance)
         np.save(results_path+ output_path +  filename + "_test_group_sizes.npy", size_testgroup)
 
-def set_up_and_run_model(crossval, model_tested,lesionload,lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null, ensemble, output_path, acute_data):
-    # This function appears to be setting up the parameters for a machine learning model.
+def run_regression_chaco_ll(X1, X2, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null,output_path,ensemble_atlas):
+    
+    if atlas =='lesionload_m1' or atlas == 'lesionload_slnm':
+        X1=np.array(X1).reshape(-1,1)
+    elif atlas == 'lesionload_all':
+        X1=np.array(X1)
+    elif atlas == 'lesionload_all_2h':
+        X1=np.array(X1)
+        
+        
+    X2 = prepare_data(X2)
+    
+    logprint('\nRunning ensemble model!')
+   
+    outer_cv = create_outer_cv(outer_cv_id)
+
+    outer_cv_splits = outer_cv.get_n_splits(X1, Y, group)
+    
+    models = np.zeros((len(models_tested), outer_cv_splits), dtype=object)
+    explained_var  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+    variable_importance  = []
+    correlations_ensemble  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+    mean_abs_error = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+    size_testgroup =[]
+    
+    for n in range(0,nperms):
+        logprint('\n\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ PERMUTATION: {}/{} ~ ~ ~ ~ ~ ~ ~ ~ ~ \n\n'.format(n, nperms))
+        
+        for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X1, Y, group)):
+            inner_cv = create_inner_cv(inner_cv_id,n)
+
+            logprint("------ Outer Fold: {}/{} ------".format(cv_fold + 1, outer_cv_splits))
+            
+            X1_train, X1_test = X1[train_id], X1[test_id]
+            X2_train, X2_test = X2[train_id], X2[test_id]
+
+            y_train, y_test = Y[train_id], Y[test_id]
+
+            group_train, group_test = group[train_id], group[test_id]
+                
+
+            logprint('Size of test group: {}'.format(group_test.shape[0]))
+            logprint('Size of train group: {}'.format(group_train.shape[0]))
+            logprint('Number of sites in test set: {}\n'.format(np.unique(group_test).shape[0]))            
+
+            size_testgroup.append(group_test.shape[0])
+            
+            mdl_idx=0
+            mdls, mdls_labels = get_models('regression', models_tested) 
+            
+            # first model: X1 (lesion data)
+            logprint('~~ Running model 1: lesion info ~~~')
+            for mdl, mdl_label in zip(mdls, mdls_labels): 
+                mdl1 = inner_loop(mdl, mdl_label, X1_train, y_train, group_train, inner_cv, 10)  
+                mdl1.fit(X1_train, y_train)
+                y1_pred= mdl1.predict(X1_test)
+                
+            logprint('~~ Running model 2: chaco ~~~')
+            # second model: X2 (chaco data)
+            mdls, mdl_labels = get_models('regression', ['ridge'])
+            for mdl, mdl_label2 in zip(mdls, mdl_labels):
+                mdl = inner_loop(mdl, mdl_label2, X2_train, y_train, group_train, inner_cv, 10)
+                mdl.fit(X2_train, y_train)
+                y2_pred= mdl.predict(X2_test)
+                
+            print(X2.shape[1])
+            if X2.shape[1] == 86:
+                chacoatlas = 'fs86subj'
+            elif X2.shape[1] == 268:
+                chacoatlas= 'shen268'
+            
+            avg_pred = np.mean([y1_pred, y2_pred], axis=0)
+            expl=explained_variance_score(y_test, avg_pred)
+            filename = '/{}_{}_{}_{}_{}_crossval{}_perm{}_ensemble_chacoLL_{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n, ensemble_atlas)
+            
+            #variable_importance.append(mdl.named_steps[mdl_label].coef_)
+            correlations_ensemble[mdl_idx, cv_fold] = np_pearson_cor(y_test,avg_pred)[0]
+
+            mean_abs_error[mdl_idx, cv_fold] = mean_absolute_error(y_test, avg_pred)         
+            explained_var[mdl_idx, cv_fold] =explained_variance_score(y_test, avg_pred)
+
+            logprint('\n')
+            logprint('R^2 score (ensemble): {} '.format(np.round(explained_variance_score(y_test, avg_pred), 3)))
+            logprint('Correlation (ensemble): {} '.format(np.round(np_pearson_cor(y_test,avg_pred)[0][0], 3)))
+            logprint('\n')
+            logprint('Corr lesion only: {} '.format(np.round(np_pearson_cor(y_test, y1_pred)[0][0], 3)))
+            logprint('Corr ChaCo only: {} '.format(np.round(np_pearson_cor(y_test, y2_pred)[0][0], 3)))
+            
+            logprint('\n')
+            explained_var[mdl_idx, cv_fold]=expl
+            if save_models:
+                models[mdl_idx, cv_fold] = mdl1
+                
+            mdl_idx += 1
+
+
+        if null>0:
+            logprint('NULL!')
+            filename = filename + '_null_' + str(null)
+        logprint('-------------- saving file w root name: {} -------------'.format(results_path + output_path + filename))
+        logprint('\n\n')
+        np.save(results_path+ output_path +  filename + "_scores.npy", explained_var)
+
+        np.save(results_path+ output_path + filename + "_model.npy", models)
+        np.save(results_path+ output_path + filename + "_correlations_ensemble.npy", correlations_ensemble)
+        np.save(results_path+ output_path +  filename + "_mean_absolute_error.npy", mean_abs_error)
+        np.save(results_path+ output_path +  filename + "_model_labels.npy", mdls_labels)
+        np.save(results_path+ output_path +  filename + "_variable_impts.npy", variable_importance)
+        np.save(results_path+ output_path +  filename + "_test_group_sizes.npy", size_testgroup)
+
+
+def run_regression_chaco_ll_demog(X1, X2, C, Y, group, inner_cv_id, outer_cv_id, models_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null,output_path,ensemble_atlas):
+    
+    # X1 = lesion load 
+    # X2 = chaco scores
+    # X3 = C (demographic)
+    if atlas =='lesionload_m1' or atlas == 'lesionload_slnm':
+        X1=np.array(X1).reshape(-1,1)
+    elif atlas == 'lesionload_all':
+        X1=np.array(X1)
+    elif atlas == 'lesionload_all_2h':
+        X1=np.array(X1)
+        
+    X2 = prepare_data(X2)
+    X3 = C
+    
+    logprint('\nRunning ensemble model!')
+   
+    outer_cv = create_outer_cv(outer_cv_id)
+
+    outer_cv_splits = outer_cv.get_n_splits(X1, Y, group)
+    
+    models = np.zeros((len(models_tested), outer_cv_splits), dtype=object)
+    explained_var  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+    variable_importance  = []
+    correlations_ensemble  = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+    mean_abs_error = np.zeros((len(models_tested),outer_cv_splits), dtype=object)
+    size_testgroup =[]
+    
+    for n in range(0,nperms):
+        logprint('\n\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ PERMUTATION: {}/{} ~ ~ ~ ~ ~ ~ ~ ~ ~ \n\n'.format(n, nperms))
+        
+        for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X1, Y, group)):
+            inner_cv = create_inner_cv(inner_cv_id,n)
+
+            logprint("------ Outer Fold: {}/{} ------".format(cv_fold + 1, outer_cv_splits))
+            
+            X1_train, X1_test = X1[train_id], X1[test_id]
+            X2_train, X2_test = X2[train_id], X2[test_id]
+            X3_train, X3_test = X3[train_id], X3[test_id]
+            y_train, y_test = Y[train_id], Y[test_id]
+
+            group_train, group_test = group[train_id], group[test_id]
+                
+
+            logprint('Size of test group: {}'.format(group_test.shape[0]))
+            logprint('Size of train group: {}'.format(group_train.shape[0]))
+            logprint('Number of sites in test set: {}\n'.format(np.unique(group_test).shape[0]))            
+
+            size_testgroup.append(group_test.shape[0])
+            
+            mdl_idx=0
+            mdls, mdls_labels = get_models('regression', models_tested) 
+                
+            # first model: X1 (lesion data)
+            logprint('~~ Running model 1: lesion info ~~~')
+            for mdl, mdl_label in zip(mdls, mdls_labels): 
+                mdl1 = inner_loop(mdl, mdl_label, X1_train, y_train, group_train, inner_cv, 10)  
+                mdl1.fit(X1_train, y_train)
+                y1_pred= mdl1.predict(X1_test)
+                
+            logprint('~~ Running model 2: chaco ~~~')
+            # second model: X2 (chaco data)
+            mdls, mdl_labels = get_models('regression', ['ridge'])
+            for mdl, mdl_label2 in zip(mdls, mdl_labels):
+                mdl = inner_loop(mdl, mdl_label2, X2_train, y_train, group_train, inner_cv, 10)
+                mdl.fit(X2_train, y_train)
+                y2_pred= mdl.predict(X2_test)
+                
+            logprint('~~ Running model 3: demographics ~~~')
+            # second model: demographic data
+            mdls, mdl_labels = get_models('regression', ['linear_regression'])
+            for mdl, mdl_label3 in zip(mdls, mdl_labels):
+                mdl = inner_loop(mdl, mdl_label3, X3_train, y_train, group_train, inner_cv, 10)
+                mdl.fit(X3_train, y_train)
+                y3_pred= mdl.predict(X3_test)
+                   
+            print(X2.shape[1])
+            if X2.shape[1] == 86:
+                chacoatlas = 'fs86subj'
+            elif X2.shape[1] == 268:
+                chacoatlas= 'shen268'
+            
+            avg_pred = np.mean([y1_pred, y2_pred, y3_pred], axis=0)
+            expl=explained_variance_score(y_test, avg_pred)
+            filename = '/{}_{}_{}_{}_{}_crossval{}_perm{}_ensemble_chacoLLdemog_{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n, ensemble_atlas)
+            
+            #variable_importance.append(mdl.named_steps[mdl_label].coef_)
+            correlations_ensemble[mdl_idx, cv_fold] = np_pearson_cor(y_test,avg_pred)[0]
+
+            mean_abs_error[mdl_idx, cv_fold] = mean_absolute_error(y_test, avg_pred)         
+            explained_var[mdl_idx, cv_fold] =explained_variance_score(y_test, avg_pred)
+
+            logprint('\n')
+            logprint('R^2 score (ensemble): {} '.format(np.round(explained_variance_score(y_test, avg_pred), 3)))
+            logprint('Correlation (ensemble): {} '.format(np.round(np_pearson_cor(y_test,avg_pred)[0][0], 3)))
+            logprint('\n')
+            logprint('Corr lesion only: {} '.format(np.round(np_pearson_cor(y_test, y1_pred)[0][0], 3)))
+            logprint('Corr ChaCo only: {} '.format(np.round(np_pearson_cor(y_test, y2_pred)[0][0], 3)))
+            logprint('Corr demog only: {} '.format(np.round(np_pearson_cor(y_test, y3_pred)[0][0], 3)))
+            logprint('\n')
+            
+            explained_var[mdl_idx, cv_fold]=expl
+            if save_models:
+                models[mdl_idx, cv_fold] = mdl1
+                
+            mdl_idx += 1
+
+
+        if null>0:
+            logprint('NULL!')
+            filename = filename + '_null_' + str(null)
+        logprint('-------------- saving file w root name: {} -------------'.format(results_path + output_path + filename))
+        logprint('\n\n')
+        np.save(results_path+ output_path +  filename + "_scores.npy", explained_var)
+
+        np.save(results_path+ output_path + filename + "_model.npy", models)
+        np.save(results_path+ output_path + filename + "_correlations_ensemble.npy", correlations_ensemble)
+        np.save(results_path+ output_path +  filename + "_mean_absolute_error.npy", mean_abs_error)
+        np.save(results_path+ output_path +  filename + "_model_labels.npy", mdls_labels)
+        np.save(results_path+ output_path +  filename + "_variable_impts.npy", variable_importance)
+        np.save(results_path+ output_path +  filename + "_test_group_sizes.npy", size_testgroup)
+
+
+def set_up_and_run_model(crossval, model_tested,lesionload,lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null, ensemble, output_path,ensemble_atlas):
+    # This function sets up the parameters for a machine learning model.
     # The function sets up the cross-validation method to be used based on the crossval input. 
-    # It then sets the acute_data variable based on the subset input. 
-    # Finally, it appears to run a machine learning regression using the specified parameters.
+    # Finally, it runs a machine learning regression using the specified parameters.
     
     if crossval == '1':
         logprint('1. Outer CV: Random partition fixed fold sizes, Inner CV: Random partition fixed fold sizes')
@@ -1036,87 +1198,133 @@ def set_up_and_run_model(crossval, model_tested,lesionload,lesionload_type, X, Y
         outer_cv_id = '5'
         inner_cv_id = '5'
     
-    if subset == 'acute':
-        acute_data = acute_data
-    else:
-        acute_data = None
     
     if y_var == 'normed_motor_scores':
         if ensemble == 'none':
             if lesionload_type == 'none':
                 if model_tested[0]=='ridge':
                     kwargs = {'x':X, 'Y':Y, 'group':site, 'models_tested':model_tested, 'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                        'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'acute_data':acute_data}
+                        'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path}
                     run_regression(**kwargs)
             elif lesionload_type =='M1':
                 atlas = 'lesionload_m1'
                 model_tested = ['linear_regression']
                 chaco_type ='NA'
                 kwargs = {'x':lesionload, 'Y':Y, 'group':site,  'models_tested':model_tested,'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'acute_data':acute_data}
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path}
                 run_regression(**kwargs)            
             elif lesionload_type =='all':
                 atlas = 'lesionload_all'
                 model_tested = ['ridge_nofeatselect']
                 chaco_type ='NA'
                 kwargs = {'x':lesionload, 'Y':Y, 'group':site,  'models_tested':model_tested,'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'acute_data':acute_data}
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path}
                 run_regression(**kwargs) 
             elif lesionload_type =='all_2h':
                 atlas = 'lesionload_all_2h'
                 model_tested = ['ridge_nofeatselect']
                 chaco_type ='NA'
                 kwargs = {'x':lesionload, 'Y':Y, 'group':site,  'models_tested':model_tested,'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'acute_data':acute_data}
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path}
                 run_regression(**kwargs) 
             elif lesionload_type =='slnm':
                 atlas = 'lesionload_slnm'
                 model_tested = ['linear_regression']
                 chaco_type ='NA'
                 kwargs = {'x':lesionload, 'Y':Y, 'group':site,  'models_tested':model_tested,'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'acute_data':acute_data}
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path}
                 run_regression(**kwargs) 
                 
         elif ensemble == 'demog':
             if lesionload_type == 'none':
                 if model_tested[0]=='ridge':
                     kwargs = {'X1':X, 'C':C, 'Y':Y, 'group':site,  'models_tested':model_tested,'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                        'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'acute_data':acute_data}
+                        'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path}
                     run_regression_ensemble(**kwargs)            
             elif lesionload_type =='M1':
                 atlas = 'lesionload_m1'
                 model_tested = ['linear_regression']
                 chaco_type = 'NA'
                 kwargs = {'X1':lesionload, 'C':C, 'Y':Y, 'group':site, 'models_tested':model_tested, 'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'acute_data':acute_data}
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path}
                 run_regression_ensemble(**kwargs)
             elif lesionload_type =='all':
                 atlas = 'lesionload_all'
                 model_tested= ['ridge_nofeatselect']
                 chaco_type ='NA'
                 kwargs = {'X1':lesionload, 'C':C, 'Y':Y, 'group':site,  'models_tested':model_tested,'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'acute_data':acute_data}
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path}
                 run_regression_ensemble(**kwargs)
             elif lesionload_type =='all_2h':
                 atlas = 'lesionload_all_2h'
                 model_tested= ['ridge_nofeatselect']
                 chaco_type ='NA'
                 kwargs = {'X1':lesionload, 'C':C, 'Y':Y, 'group':site,  'models_tested':model_tested,'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'acute_data':acute_data}
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path}
                 run_regression_ensemble(**kwargs)
             elif lesionload_type =='slnm':
                 atlas = 'lesionload_slnm'
                 model_tested= ['linear_regression']
                 chaco_type ='NA'
                 kwargs = {'X1':lesionload, 'C':C, 'Y':Y, 'group':site,  'models_tested':model_tested,'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'acute_data':acute_data}
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path}
                 run_regression_ensemble(**kwargs)
+                
+        elif ensemble == 'chaco_ll':
+            print('\n Running ensemble model with ChaCo scores AND lesion loads.. \n')
+            if lesionload_type =='M1':
+                atlas = 'lesionload_m1'
+                model_tested = ['linear_regression']
+                chaco_type = 'NA'
+                kwargs = {'X1':lesionload, 'X2':X, 'Y':Y, 'group':site, 'models_tested':model_tested, 'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'ensemble_atlas':ensemble_atlas}
+                run_regression_chaco_ll(**kwargs)
+            elif lesionload_type =='all':
+                atlas = 'lesionload_all'
+                model_tested= ['ridge_nofeatselect']
+                chaco_type ='NA'
+                kwargs = {'X1':lesionload, 'X2':X, 'Y':Y, 'group':site,  'models_tested':model_tested,'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'ensemble_atlas':ensemble_atlas}
+                run_regression_chaco_ll(**kwargs)
+            elif lesionload_type =='all_2h':
+                atlas = 'lesionload_all_2h'
+                model_tested= ['ridge_nofeatselect']
+                chaco_type ='NA'
+                kwargs = {'X1':lesionload, 'X2':X, 'Y':Y, 'group':site,  'models_tested':model_tested,'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'ensemble_atlas':ensemble_atlas}
+                run_regression_chaco_ll(**kwargs)
+                
+                
+        elif ensemble == 'chaco_ll_demog':
+            print('\n Running ensemble model with ChaCo scores AND lesion loads AND demographics.. \n')
+            if lesionload_type =='M1':
+                atlas = 'lesionload_m1'
+                model_tested = ['linear_regression']
+                chaco_type = 'NA'
+                kwargs = {'X1':lesionload, 'X2':X, 'C':C, 'Y':Y, 'group':site, 'models_tested':model_tested, 'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'ensemble_atlas':ensemble_atlas}
+                run_regression_chaco_ll_demog(**kwargs)
+            elif lesionload_type =='all':
+                atlas = 'lesionload_all'
+                model_tested= ['ridge_nofeatselect']
+                chaco_type ='NA'
+                kwargs = {'X1':lesionload, 'X2':X, 'C':C, 'Y':Y, 'group':site,  'models_tested':model_tested,'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'ensemble_atlas':ensemble_atlas}
+                run_regression_chaco_ll_demog(**kwargs)
+            elif lesionload_type =='all_2h':
+                atlas = 'lesionload_all_2h'
+                model_tested= ['ridge_nofeatselect']
+                chaco_type ='NA'
+                kwargs = {'X1':lesionload, 'X2':X, 'C':C, 'Y':Y, 'group':site,  'models_tested':model_tested,'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
+                    'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'ensemble_atlas':ensemble_atlas}
+                run_regression_chaco_ll_demog(**kwargs)
+
           
-def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms, ensemble,n_outer_folds):
-    # This function appears to be a helper function for saving the outputs of a machine learning model. It takes a number of 
+def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms, ensemble,n_outer_folds,ensemble_atlas):
+    # This function is a helper function for saving the outputs of a machine learning model. It takes a number of 
     # inputs, including results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms, and ensemble. 
     # The function then sets up a number of arrays to store the outputs of the model, and then saves those outputs to files in the 
-    # specified directory. It appears that the function is able to handle saving the outputs of different types of models, such as 
+    # specified directory. The function is able to handle saving the outputs of different types of models, such as 
     # those using different atlases, cross-validation methods, and so on.
     
     logprint('Saving model outputs to directory: {}'.format(results_path + output_path))
@@ -1163,13 +1371,21 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
         # don't care about feature weights for demographic information, and any lesion feature weights are the same as no-ensemble models.
         if ensemble =='demog':
             
-            r2scores_ensemble=np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_scores.npy',allow_pickle=True)
-            correlation_ensemble = np.load(rootname +'_perm'+ str(n) + '_ensemble'+ '_correlations_ensemble.npy',allow_pickle=True)
+            r2scores_ensemble=np.load(rootname +'_perm'+ str(n) + '_ensemble_demog'+ '_scores.npy',allow_pickle=True)
+            correlation_ensemble = np.load(rootname +'_perm'+ str(n) + '_ensemble_demog'+ '_correlations_ensemble.npy',allow_pickle=True)
             #varimpts_ensemble=np.load(rootname +'_perm'+ str(n) +  '_ensemble'+ '_activation_weights.npy',allow_pickle=True)
             #mdl=np.load(rootname +'_perm'+ str(n) + '_ensemble'+  '_model.npy',allow_pickle=True)
             r2scores_allperms[n,] = r2scores_ensemble
             correlation_allperms[n,] = correlation_ensemble
             
+        if ensemble =='chaco_ll':
+            
+            r2scores_ensemble=np.load(rootname +'_perm'+ str(n) + '_ensemble_chacoLL_' + ensemble_atlas + '_scores.npy',allow_pickle=True)
+            correlation_ensemble = np.load(rootname +'_perm'+ str(n) + '_ensemble_chacoLL_' + ensemble_atlas + '_correlations_ensemble.npy',allow_pickle=True)
+            #varimpts_ensemble=np.load(rootname +'_perm'+ str(n) +  '_ensemble'+ '_activation_weights.npy',allow_pickle=True)
+            #mdl=np.load(rootname +'_perm'+ str(n) + '_ensemble'+  '_model.npy',allow_pickle=True)
+            r2scores_allperms[n,] = r2scores_ensemble
+            correlation_allperms[n,] = correlation_ensemble
             
         # no ensemble model.
         if ensemble =='none':
@@ -1180,11 +1396,11 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
 
             if atlas == 'lesionload_all' or atlas=='lesionload_all_2h':
                 # bc there is no feature selection, we can average the weights of the lesioad load CSTs together together.
-                varimpts_allperms[n,]=np.mean(varimpts,axis=0)
+                varimpts_allperms[n,]=np.median(varimpts,axis=0)
                 
-                mean_betas_allperms[n,]=np.mean(betas,axis=0)
+                mean_betas_allperms[n,]=np.median(betas,axis=0)
                 std_betas_allperms[n,]=np.std(betas,axis=0)
-                betas_allperms[n,]=np.mean(betas,axis=0)
+                betas_allperms[n,]=np.median(betas,axis=0)
                 
             if atlas == 'fs86subj' or atlas == 'shen268':
                 # there is feature selection. so let's concatenate the outer loop features together and only look at features that are included in >50% of the outer folds
@@ -1294,7 +1510,7 @@ def logprint(string):
     logging.info(string)
  
  
-def check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset):
+def check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset,ensemble_atlas):
     # The function then searches through the specified results_path directory to see if any files with the specified parameters 
     # already exist. If it finds any such files, it returns True and the path to the directory where the files were found. 
     # If no such files are found, it returns False and the results_path directory. 
@@ -1306,12 +1522,25 @@ def check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_
     
     for folder in subfolders:
         if ensemble == 'demog':
-            filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_ensemble_scores.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
+            filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_ensemble_demog_scores.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
 
             if os.path.exists(filename):
                 print('Files already exist in folder {}!'.format(folder))
                 return True, folder
- 
+            
+        elif ensemble == 'chaco_ll':
+            filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_ensemble_chacoLL_{}_scores.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, ensemble_atlas)
+
+            if os.path.exists(filename):
+                print('Files already exist in folder {}!'.format(folder))
+                return True, folder
+            
+        elif ensemble == 'chaco_ll_demog':
+            filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_ensemble_chacoLLdemog_{}_scores.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, ensemble_atlas)
+
+            if os.path.exists(filename):
+                print('Files already exist in folder {}!'.format(folder))
+                return True, folder
         else:
             #filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_scores.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
             filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_beta_coeffs.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
@@ -1321,3 +1550,5 @@ def check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_
                 return True, folder  
 
     return False, results_path
+
+

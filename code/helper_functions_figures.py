@@ -44,6 +44,19 @@ def create_performance_figures(r2_scores, correlations,label, results_path, anal
         range_y = 'analysis1'
     if analysis_id=='analysis_2':
         range_y = 'analysis2'
+    if analysis_id=='analysis_3':
+        range_y = 'analysis3'    
+    if analysis_id=='analysis_4':
+        range_y = 'analysis4'  
+    if analysis_id=='analysis_5':
+        range_y = 'analysis5'    
+    if analysis_id=='analysis_6':
+        range_y = 'analysis6'  
+    if analysis_id == 'analysis_7':
+        range_y = 'analysis7'
+    # for loop over subsets
+    
+    
     path = results_path + '/' + analysis_id 
     print('MAKING BOXPLOTS')
     print('Saving figures with filename: {}'.format(path))
@@ -184,55 +197,100 @@ def box_and_whisker(data, title, ylabel, xticklabels, path,n_sets, range_y):
         data2 = data[:,c[1]-1]
         #print(data2.shape)
         # Significance
-        U, p = stats.mannwhitneyu(data1, data2, alternative='two-sided')
+        try:
+            U, p = stats.mannwhitneyu(data1, data2, alternative='two-sided')
+        except:
+            ValueError('Values all the same! ')
         if p < 0.05:
             significant_combinations.append([c, p])
             
     # Get info about y-axis
     bottom_actual, top_actual = ax.get_ylim()
-    if range_y == 'analysis1':
-        print('ANALYSIS 1')
+    factor = 0.02
+    if range_y == 'analysis1' :
         if ylabel == 'Pearson correlation':
-            top = 0.5  
-            bottom = 0
+            top = 0.5
+            bottom = 0.35
+            factor=0.008
         elif ylabel == 'R-squared':
-            top = 0.3
-            bottom = 0
-            
+            top = 0.2
+            bottom = 0.1
+            factor = 0.02
     if range_y == 'analysis2':
         if ylabel == 'Pearson correlation':
-            top = 0.5  
-            bottom = 0
+            top = 0.7
+            bottom = 0.2
         elif ylabel == 'R-squared':
-            print('test')
             top = 0.3
-            bottom = 0
-        
+            bottom = -0.1
+    if range_y == 'analysis3':
+        if ylabel == 'Pearson correlation':
+            top = 0.5
+            bottom = 0.3
+            factor= 0.01
+
+        elif ylabel == 'R-squared':
+            top = 0.2
+            bottom = -0.1
+            factor= 0.02
+
+    if range_y == 'analysis4' or range_y == 'analysis5':
+        if ylabel == 'Pearson correlation':
+            top = 0.5  
+            bottom = 0.3
+            factor= 0.01
+        elif ylabel == 'R-squared':
+            top = 0.2
+            bottom = 0.1
+            factor= 0.01
+
+    if range_y == 'analysis6' :
+        if ylabel == 'Pearson correlation':
+            top = 0.6
+            bottom = 0.3
+            factor = 0.012
+        elif ylabel == 'R-squared':
+            top = 0.6
+            bottom = -0.1
+            factor = 0.03
+            
+    if range_y == 'analysis7' :
+        if ylabel == 'Pearson correlation':
+            top = 0.6
+            bottom = 0.3
+            factor = 0.005
+        elif ylabel == 'R-squared':
+            top = 0.4
+            bottom = 0.2
+            factor = 0.005
     yrange = top - bottom
+    
     #yrange = 1.75 -0
     # Significance bars
-    for i, significant_combination in enumerate(significant_combinations):
-        # Columns corresponding to the datasets of interest
-        x1 = significant_combination[0][0]
-        x2 = significant_combination[0][1]
-        # What level is this bar among the bars above the plot?
-        level = len(significant_combinations) - i
-        # Plot the bar
-        bar_height = (top_actual * 0.03 * level) + top_actual
-        bar_tips = bar_height - (yrange * 0.01)
-        plt.plot(
-            [x1, x1, x2, x2],
-            [bar_tips, bar_height, bar_height, bar_tips], lw=0.5, c='k')
-        # Significance level
-        p = significant_combination[1]
-        if p < 0.001:
-            sig_symbol = '***'
-        elif p < 0.01:
-            sig_symbol = '**'
-        elif p < 0.05:
-            sig_symbol = '*'
-        text_height = bar_height - 0.001
-        plt.text((x1 + x2) * 0.5, text_height, sig_symbol, ha='center', c='k',fontsize=6)
+    add_sig_bars=True
+    if add_sig_bars:
+        for i, significant_combination in enumerate(significant_combinations):
+            # Columns corresponding to the datasets of interest
+            x1 = significant_combination[0][0]
+            x2 = significant_combination[0][1]
+            # What level is this bar among the bars above the plot?
+            level = len(significant_combinations) - i
+            # Plot the bar
+            bar_height = (top_actual * factor * level) + top_actual
+            bar_tips = bar_height - (yrange * 0.01)
+            plt.plot(
+                [x1, x1, x2, x2],
+                [bar_tips, bar_height, bar_height, bar_tips], lw=0.5, c='k')
+            # Significance level
+            p = significant_combination[1]
+            if p < 0.001:
+                sig_symbol = '***'
+            elif p < 0.01:
+                sig_symbol = '**'
+            elif p < 0.05:
+                sig_symbol = '*'
+            text_height = bar_height - 0.0001
+            plt.text((x1 + x2) * 0.5, text_height, sig_symbol, ha='center', c='k',fontsize=6)
 
     # Adjust y-axis
     bottom, top = ax.get_ylim()
@@ -242,21 +300,34 @@ def box_and_whisker(data, title, ylabel, xticklabels, path,n_sets, range_y):
     if range_y == 'analysis1':
         #ax.set_ylim(bottom - 0.1 * yrange, top)
         if ylabel == 'Pearson correlation':
-            ax.set_ylim(0, 0.65)
+            ax.set_ylim(0.35, 0.52)
         elif ylabel == 'R-squared':
-            ax.set_ylim(0, 0.35)
+            ax.set_ylim(0.1, 0.28)
     if range_y == 'analysis2':
         #ax.set_ylim(bottom - 0.1 * yrange, top)
         if ylabel == 'Pearson correlation':
-            ax.set_ylim(0, 0.65)
+            ax.set_ylim(0.2, 0.8)
         elif ylabel == 'R-squared':
-            ax.set_ylim(0, 0.35)
-    if range_y == 'analysis4':
+            ax.set_ylim(-0.1, 0.35)
+    if range_y == 'analysis4' or range_y == 'analysis5':
         #ax.set_ylim(bottom - 0.1 * yrange, top)
         if ylabel == 'Pearson correlation':
-            ax.set_ylim(0, 1.25)
+            ax.set_ylim(0.35, 0.55)
         elif ylabel == 'R-squared':
-            ax.set_ylim(-0.2, 0.8)
+            ax.set_ylim(0.1, 0.3)
+    if range_y == 'analysis6' or range_y == 'analysis7':
+        #ax.set_ylim(bottom - 0.1 * yrange, top)
+        if ylabel == 'Pearson correlation':
+            ax.set_ylim(0.4, 0.7)
+        elif ylabel == 'R-squared':
+            ax.set_ylim(0.2, 0.4)
+            
+    if range_y == 'analysis3':
+        #ax.set_ylim(bottom - 0.1 * yrange, top)
+        if ylabel == 'Pearson correlation':
+            ax.set_ylim(0.3, 0.65)
+        elif ylabel == 'R-squared':
+            ax.set_ylim(0.05, 0.33)
     # Annotate sample size below each box
     #for i, dataset in enumerate(data):
         #sample_size = len(dataset)
@@ -292,9 +363,7 @@ def generate_wb_files(atlas, results_path, output_path, analysis_id, y_var,chaco
     os.chdir('/home/ubuntu/enigma/motor_predictions/wb_files/workbench_ubuntu')
 
     atlas_dir = '/home/ubuntu/enigma/motor_predictions/wb_files/'
-    image_dir = '/home/ubuntu/enigma/motor_predictions/wb_files/'
     hcp_dir =  '/home/ubuntu/enigma/motor_predictions/wb_files/HCP_S1200_GroupAvg_v1'
-    txt_dir = '/home/ubuntu/enigma/results/analysis_1/'
     workbench_dir =  '/home/ubuntu/enigma/motor_predictions/wb_files/workbench_ubuntu'
     
     textfiles_haufe = ['meanfeatureweight_allperms_50', 'meanfeatureweight_allperms_90', 'meanfeatureweight_allperms_99']
@@ -634,6 +703,7 @@ def generate_wb_figures_setup(hcpdir, scenesdir):
         scenefile = scenefile.replace('shen268_normed_motor_scores_chacovol_chronic_ridge_crossval1_meanfeatureweight_allperms_50_surfacefileL.shape.gii', 'surfL.gii')
         
         scenefile = scenefile.replace('shen268_normed_motor_scores_chacovol_chronic_ridge_crossval1_meanfeatureweight_allperms_50_surfacefileR.shape.gii', 'surfR.gii')
+    
     # Write the file out again
     with open(scenesdir + 'landscape_surfaces_edit.scene', 'w') as f:
         f.write(scenefile)
@@ -915,7 +985,11 @@ def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subs
         scenefile = results_path+ '/'+  analysis_id +'/lateralsurfaces_scene.scene'
         print('Generating workbench figures:\n {}'.format(figurefile))
         #os.system('bash {}/wb_command -show-scene {} 1 {} 4000 1000'.format(wbpath, scenefile, figurefile))
-        
+     
+   
+    # smatt files:
+    surface_fileR = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, file)
+
         
 def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval):
     
@@ -1013,3 +1087,135 @@ def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_va
     
        
     plt.savefig(path_file, bbox_inches ='tight')
+    
+    
+    
+def generate_smatt_ll_wb_figs(results_path,analysis_id, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval,scenesdir, wbpath):
+    
+    os.chdir('/home/ubuntu/enigma/motor_predictions/wb_files/workbench_ubuntu')
+    atlas_dir = '/home/ubuntu/enigma/motor_predictions/wb_files/'
+
+    print('making subcortical + surface betas files')
+    
+    rootname_truepred = results_path + output_path + '/{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
+
+    # load text file
+    scalar = np.loadtxt(rootname_truepred + '_betas.txt')
+    
+    print(scalar.shape)
+    
+    median_betas = np.median(scalar,axis=0)
+    print(median_betas.shape)
+   
+    L_tracts = ['L_M1', 'L_PMd', 'L_PMv', 'L_S1', 'L_SMA', 'L_preSMA']
+    R_tracts = ['R_M1', 'R_PMd', 'R_PMv', 'R_S1', 'R_SMA', 'R_preSMA']
+
+    vertexdataL = np.zeros(shape = (6,91282))
+    
+    if scalar.shape[1]==12: # if bihemispheric, calcualte L side values
+        counter = 0
+        for tract in L_tracts:
+            refimg =  nib.load(atlas_dir + '{}_bin.dscalar.nii'.format(tract))
+            data = refimg.get_fdata()
+            imgdata = data*median_betas[counter]
+            imgdata = imgdata.astype(refimg.get_data_dtype())
+            vertexdataL[counter,]=imgdata
+            counter=counter+1
+            
+    if scalar.shape[1]==6: # if ipsilesional, L values are 0
+        counter = 0
+        for tract in L_tracts:
+            refimg =  nib.load(atlas_dir + '{}_bin.dscalar.nii'.format(tract))
+            data = refimg.get_fdata()
+            imgdata = data*0 
+            imgdata = imgdata.astype(refimg.get_data_dtype())
+            vertexdataL[counter,]=imgdata
+            counter=counter+1
+            
+    vertexdataR = np.zeros(shape = (6,91282))
+
+    counter = 0
+    for tract in R_tracts:
+        refimg =  nib.load(atlas_dir + '{}_bin.dscalar.nii'.format(tract))
+        data = refimg.get_fdata()
+        imgdata = data*median_betas[counter]
+        imgdata = imgdata.astype(refimg.get_data_dtype())
+        vertexdataR[counter,]=imgdata
+        counter=counter+1
+        
+    finalvertexR = np.reshape(np.sum(vertexdataR, axis=0), [1,91282]).astype(refimg.get_data_dtype())
+    imgnew=nib.cifti2.cifti2.Cifti2Image(finalvertexR,header=refimg.header)
+    nib.save(imgnew, rootname_truepred + "_R.dscalar.nii")
+    
+    finalvertexL = np.reshape(np.sum(vertexdataL, axis=0), [1,91282]).astype(refimg.get_data_dtype())
+    imgnew=nib.cifti2.cifti2.Cifti2Image(finalvertexL,header=refimg.header)
+    nib.save(imgnew, rootname_truepred + "_L.dscalar.nii")
+    
+    surface_fileR = rootname_truepred + "_R.dscalar.nii"
+    surface_fileL = rootname_truepred + "_L.dscalar.nii"
+
+    giftimetaR = nib.load(scenesdir + 'surfmetadataR.shape.gii') # reference gifti - colormap
+    giftimetaR.darrays[0].data = finalvertexR
+    newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaR.header, extra=None, file_map = giftimetaR.file_map, labeltable=giftimetaR.labeltable, darrays=giftimetaR.darrays, meta = giftimetaR.meta, version='1.0')
+    #nib.save(newgifti, surface_fileR)
+    giftimetaL = nib.load(scenesdir + 'surfmetadataL_SMATT.shape.gii') # reference gifti - colormap
+    giftimetaL.darrays[0].data =finalvertexL
+    newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaL.header, extra=None, file_map = giftimetaL.file_map, labeltable=giftimetaL.labeltable, darrays=giftimetaL.darrays, meta = giftimetaL.meta, version='1.0')
+    #nib.save(newgifti, surface_fileL)
+    
+    shutil.copy(scenesdir+'landscape_surfaces_edit.scene', results_path+ '/'+  analysis_id +'/surfaces_scene.scene') 
+    shutil.copy(scenesdir+'row_surfaces_edit.scene', results_path+ '/'+  analysis_id +'/rowsurfaces_scene.scene') 
+    shutil.copy(scenesdir+'lateral_surface_edit.scene', results_path+ '/'+  analysis_id +'/lateralsurfaces_scene.scene') 
+    shutil.copy(scenesdir+'dorsal_surface_edit.scene', results_path+ '/'+  analysis_id +'/dorsalsurfaces_scene.scene') 
+    shutil.copy(scenesdir+'medial_surface_edit.scene', results_path+ '/'+  analysis_id +'/medialsurfaces_scene.scene') 
+
+    # replace volume/surface files with specific results files.
+
+    with open(results_path+ '/'+  analysis_id +'/surfaces_scene.scene', "r") as f:
+        scenefile = f.read()
+        scenefile = scenefile.replace('surfL.gii',surface_fileL)
+        scenefile = scenefile.replace('surfR.gii',surface_fileR)
+    with open(results_path+ '/'+  analysis_id +'/surfaces_scene.scene', 'w') as f:
+        f.write(scenefile)
+    
+    with open(results_path+ '/'+  analysis_id +'/rowsurfaces_scene.scene', "r") as f:
+        scenefile = f.read()
+        scenefile = scenefile.replace('surfL.gii',surface_fileL)
+        scenefile = scenefile.replace('surfR.gii',surface_fileR)
+    with open(results_path+ '/'+  analysis_id +'/rowsurfaces_scene.scene', 'w') as f:
+        f.write(scenefile)
+    
+    with open(results_path+ '/'+  analysis_id +'/lateralsurfaces_scene.scene', "r") as f:
+        scenefile = f.read()
+        scenefile = scenefile.replace('surfL.gii',surface_fileL)
+        scenefile = scenefile.replace('surfR.gii',surface_fileR)
+    with open(results_path+ '/'+  analysis_id +'/lateralsurfaces_scene.scene', 'w') as f:
+        f.write(scenefile)     
+        
+    with open(results_path+ '/'+  analysis_id +'/dorsalsurfaces_scene.scene', "r") as f:
+        scenefile = f.read()
+        scenefile = scenefile.replace('surfL.gii',surface_fileL)
+        scenefile = scenefile.replace('surfR.gii',surface_fileR)
+    with open(results_path+ '/'+  analysis_id +'/dorsalsurfaces_scene.scene', 'w') as f:
+        f.write(scenefile)   
+        
+    with open(results_path+ '/'+  analysis_id +'/medialsurfaces_scene.scene', "r") as f:
+        scenefile = f.read()
+        scenefile = scenefile.replace('surfL.gii',surface_fileL)
+        scenefile = scenefile.replace('surfR.gii',surface_fileR)
+    with open(results_path+ '/'+  analysis_id +'/medialsurfaces_scene.scene', 'w') as f:
+        f.write(scenefile)  
+
+    # surface scene2
+    
+    figurefile = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_surfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
+    scenefile = results_path+ '/'+  analysis_id +'/surfaces_scene.scene'
+    print('Generating workbench figures:\n {}'.format(figurefile))
+    os.system('bash {}/wb_command -show-scene {} 1 {} 1300 900'.format(wbpath, scenefile, figurefile))
+    
+    figurefile = results_path + '/'+ analysis_id + '/{}_{}_{}_{}_{}_crossval{}_dorsalsurfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
+    scenefile = results_path+ '/'+  analysis_id +'/dorsalsurfaces_scene.scene'
+    print('Generating workbench figures:\n {}'.format(figurefile))
+    os.system('bash {}/wb_command -show-scene {} 1 {} 10000 1300'.format(wbpath, scenefile, figurefile))
+    
+  

@@ -105,6 +105,19 @@ def load_csv(csv_path):
     return df
 
 def get_chronicity_subset(df, subset_data):
+    # The get_chronicity_subset function filters a DataFrame df to only include data for a certain subset of stroke subjects, 
+    # as specified by the subset_data parameter. The subset_data parameter can be either 'chronic' or 'acute', 
+    # to indicate whether to include only chronic or acute stroke subjects, respectively. If the subset_data
+    # parameter is set to any other value, the function will return the original DataFrame without filtering.
+
+    # It then uses an if statement to check the value of subset_data and filter the DataFrame accordingly. 
+    # If subset_data is 'chronic', the function filters the DataFrame to only include rows where the 'CHRONICITY'
+    # column has a value of 180. If subset_data is 'acute', the function filters the DataFrame to only include rows
+    # where the 'CHRONICITY' column has a value of 90. In either case, the function then resets the DataFrame's
+    # index and saves the filtered DataFrame to the df_final variable.
+
+    # Finally, the function returns the list of subject IDs in the filtered DataFrame, which are stored in the 'BIDS_ID' column.
+    
     logging.info('Removing subjects that are not {} stroke subjects'.format(subset_data))
     logging.info('---- Original N = {}'.format(df.shape[0]))
     if subset_data == 'chronic':
@@ -209,6 +222,13 @@ def create_data_set(csv_path=None, lesionmask_path = None, atlas=None, covariate
             
     if remove_demog:
         df = remove_missing_demographics(df,covariates_list)   
+    
+    if 'SEX' in covariates_list:
+        print('sex')
+        sex = df['SEX']
+        df['SEX'] = sex -1
+        df = df[df['SEX'] <= 1]
+        
     
     #logging.info('DF SHAPE AFTER REMOVAL OF MISSING DEMOGRAPHICS:')
     #logging.info(df.shape)

@@ -24,7 +24,7 @@ reload(helper_functions_figures)
 # options for visualizing the results using the Connectome Workbench software and generating box plots of the results.
 
 
-def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covariates=None, lesionload_types=None, nperms=None, save_models=None, ensembles=None, atlases=None, chaco_types=None, crossval_types=None, null =None, results_path=None, output_path = None, figs_only=None, analysis_id=None, workbench_vis=None,scenesdir= None, wbpath =None,boxplots=None, override_rerunmodels=None):
+def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covariates=None, lesionload_types=None, nperms=None, save_models=None, ensembles=None, atlases=None, chaco_types=None, crossval_types=None, null =None, results_path=None, output_path = None, figs_only=None, analysis_id=None, workbench_vis=None,scenesdir= None, wbpath =None,boxplots=None, override_rerunmodels=None, ensemble_atlas = None):
     # y_var: str, default ='normed_motor_scores', dependent variable in regression models
     # subsets: str, default = 'chronic', subset of data to use for analysis
     # models_tested: list, default = ['ridge'], machine learning models to run
@@ -97,7 +97,7 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
     
     if ensembles:
         ensembles = ensembles
-        ensemble_options =['none', 'demog', 'll+nemo']
+        ensemble_options =['none', 'demog', 'chaco_ll', 'chaco_ll_demog']
         if not set(ensembles).issubset(set(ensemble_options)):
             raise RuntimeError('Warning! Unknown ensemble type specified: {}\n Only the following options are allowed: {} \n'.format(ensembles, ensemble_options))
     else:
@@ -169,6 +169,8 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
         boxplots = boxplots
     if override_rerunmodels:
         override_rerunmodels=override_rerunmodels
+    if ensemble_atlas:
+        ensemble_atlas=ensemble_atlas   
 
     print(override_rerunmodels)
     print('\n---------------------------------')
@@ -183,15 +185,16 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
     loo_counter = 0#counter for the nested loop
     for subset in subsets:
         print('Starting pipeline..\n') 
-        for lesionload_type in lesionload_types:
-            print('lesionload = {}'.format(lesionload_type))
-            for ensemble in ensembles:
-                print('ensemble = {}'.format(ensemble))
+        for ensemble in ensembles:
+            print('ensemble = {}'.format(ensemble))
+            for lesionload_type in lesionload_types:
+                print('lesionload = {}'.format(lesionload_type))
                 if lesionload_type == 'none' and (('chacovol' in chaco_types) or ('chacoconn' in chaco_types)):
                     print('Running ChaCo models.........')
                     for atlas in atlases: 
                         for chaco_type in chaco_types:
                             for crossval in crossval_types:
+                                
                                 model_tested = models_tested
                                 
                                 #create the log file name
@@ -199,14 +202,10 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
                                 logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
                                 #format the data for the current parameters
-                                [X, Y, C, lesion_load, site] = create_data_set(CSV_PATH,LESIONMASK_PATH,atlas,covariates, verbose, y_var, chaco_type, 'chronic',1,ll= lesionload_type)
-                                
-                                #if subset is acute, then pass 'acute' variable into create_data_set to return acute dataset
-                                if subset=='acute': 
-                                    X_acute, Y_acute, C_acute, lesion_load_acute, site_acute = create_data_set(CSV_PATH,LESIONMASK_PATH,atlas,covariates, verbose, y_var, chaco_type, subset,1,ll= lesionload_type)
-                                    acute_data = {'X_acute':X_acute, 'Y_acute':Y_acute, 'C_acute':C_acute,'lesion_load_acute':lesion_load_acute, 'site_acute':site_acute}
-                                else:
-                                    acute_data = None
+                                [X, Y, C, lesion_load, site] = create_data_set(CSV_PATH,LESIONMASK_PATH,atlas,covariates, verbose, y_var, chaco_type, subset,1,ll= lesionload_type)
+                                print('X shape: {}'.format(X.shape))
+                                if lesion_load:
+                                    print('lesionload shape: {}'.format(lesion_load.shape))
                                 
                                 #number of sites in the dataset
                                 nsites = np.unique(site).shape[0]
@@ -224,17 +223,17 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
                                     # results already exist. If they do, it skips running the model and uses the existing results. If the 
                                     # results don't exist or the user wants to override previous results, the code runs the model and saves the results.
 
-                                    files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset)
+                                    files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset,ensemble_atlas)
                                     
                                     if files_exist: # we dont want to override but dont recalculate what's already been done
                                         output_fullpath = folder
                                         output_path = output_fullpath.replace(results_path, '')
                                     else:
                                         if not figs_only: # if figs_only then we just want the output path where the files are located. if not, then actually run the model.
-                                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path, acute_data)
+                                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas)
                                 else: # we do want to override previous results
                                     print('Overriding previous model runs!')
-                                    set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,acute_data)
+                                    set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas)
 
                             
                                 if crossval == '2':
@@ -242,16 +241,21 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
                                 if crossval == '5' or crossval == '1' or crossval =='3':
                                     n_outer_folds=5
                                 
-                                [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds)
+                                [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds, ensemble_atlas)
 
                                 if ensemble=='demog':
                                     label =atlas + ' ' + chaco_type + ' ensemble'
+                                elif ensemble=='chaco_ll':
+                                    label =atlas + ' ' + chaco_type + ' ensemble'
+
                                 else:
                                     label = atlas + ' ' + chaco_type
+                                    
                                 if len(crossval_types)>1:
                                     label = label + ' ' + crossval
-                                #if len(subsets)>1:
-                                #    label = label + ', train: ' + subset
+                                    
+                                if len(subsets)>1:
+                                    label = label + ' ' + subset
                             
                                 label_plot_one.append(label)
                                 
@@ -287,7 +291,8 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
                                         print('\nMaking workbench visualization files..\n')
                                         print('Making workbench figures..\n')
                                         generate_wb_figures(**kwargs_workbench)
-                else:
+
+                else: #chaco_ll and chaco_ll_demog run here.
                     
                     #print('Running Basic models.........')
                     for crossval in crossval_types:
@@ -313,19 +318,20 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
                             model_tested= ['ridge_nofeatselect']
                             chaco_type = 'NA' 
                             
+                        
                         log_file = results_path + '/{}_{}_{}_{}_{}_crossval{}_ensemble-{}'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, ensemble) + '.log'
                         
                         logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
                         
                         #logprint('Started')
-                        
-                        [X, Y, C, lesion_load, site] = create_data_set(CSV_PATH,LESIONMASK_PATH,atlas,covariates, verbose, y_var, chaco_type, subset,1,ll= lesionload_type)
-                        if subset=='acute': #then pass acute var into create_data_set to return acute dataset.
-                            X_acute, Y_acute, C_acute, lesion_load_acute, site_acute = create_data_set(CSV_PATH,LESIONMASK_PATH,atlas,covariates, verbose, y_var, chaco_type, subset,1,ll= lesionload_type)
-                            acute_data = {'X_acute':X_acute, 'Y_acute':Y_acute, 'C_acute':C_acute,'lesion_load_acute':lesion_load_acute, 'site_acute':site_acute}
+                        if ensemble_atlas:
+                            chaco_atlas = ensemble_atlas
                         else:
-                            acute_data=None
-                        
+                            chaco_atlas = atlas
+                            
+                        [X, Y, C, lesion_load, site] = create_data_set(CSV_PATH,LESIONMASK_PATH,chaco_atlas,covariates, verbose, y_var, chaco_type,subset,1,ll= lesionload_type)
+
+      
                         logprint('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n ')
                         logprint('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ Running machine learning model: ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n ')
                         logprint('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n ')
@@ -339,34 +345,37 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
                         nsites = np.unique(site).shape[0]
 
                         if not override_rerunmodels: # if we don't want to override model results
-                            files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset)
+                            files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset,ensemble_atlas)
                             
                             if files_exist: # we dont want to override but dont recalculate what's already been done
+                                print('folder')
                                 output_fullpath = folder
                                 output_path = output_fullpath.replace(results_path, '')
                             else:
                                 if not figs_only: # if figs_only then we just want the output path where the files are located. if not, then actually run the model.
-                                    set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path, acute_data)
+                                    set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,chaco_atlas)
                         else: # we do want to override previous results
                             print('Overriding previous model runs!')
-                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path, acute_data)
+                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,chaco_atlas)
 
                         if crossval == '2':
                             n_outer_folds = np.unique(site).shape[0]
                         elif crossval == '5' or crossval == '1' or crossval =='3' or crossval == '4':
                             n_outer_folds =5
                                                 
-                        [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds)
-                        
-                        
-                        if ensemble=='demog':
+                        [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds,chaco_atlas)
+
+                        if ensemble == 'chaco_ll':
+                            label = atlas + ' chaco_ll_ensemble'
+                            
+                        elif ensemble=='demog':
                             label =atlas + ' ensemble'
                         else:
                             label = atlas
                         if len(crossval_types)>1:
                             label = label + ' ' + crossval
-                        #if len(subsets)>1:
-                        #    label = label + ', train:' + subset
+                        if len(subsets)>1:
+                            label = label + ' ' + subset
                             
                             
                         label_plot_one.append(label)
@@ -385,19 +394,29 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
                             corrs=np.append(corrs,np.reshape(np.mean(corrall,axis=1), [-1, nperms]),axis=0)
                         
                         if atlas == 'lesionload_all' or atlas=='lesionload_all_2h':
-                            
                             kwargs_llfigs = {'results_path':results_path, 'output_path':output_path, 'analysis_id':analysis_id,\
                                 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
                                     'model_tested':model_tested, 'crossval':crossval}
                             generate_smatt_ll_figures(**kwargs_llfigs)
+                            kwargs_llfigs = {'results_path':results_path, 'output_path':output_path, 'analysis_id':analysis_id,\
+                                'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
+                                    'model_tested':model_tested, 'crossval':crossval,'scenesdir': scenesdir, 'wbpath':wbpath}
+                            #generate_smatt_ll_wb_figs(**kwargs_llfigs)
                             
     if 'r2means_loo' in locals():
         print('leave one out')
         r2means = r2means_loo
         corrs = corrs_loo
 
+    if 'chaco_ll' in ensembles:
+        subsets = ['one', 'two']
+    if 'demog' in ensembles and (len(ensembles) >1):
+        subsets = ['one', 'two']
     kwargs = {'label': label_plot_one, 'r2_scores':r2means, 'correlations':corrs,'results_path': results_path, 'analysis_id': analysis_id, \
             'subsets': subsets}
+    
+    print(subsets)
+    print(label_plot_one)
     print('boxplots == {}'.format(boxplots))
     if boxplots:
         # create figures that summarize models' performance
