@@ -33,7 +33,7 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
     # lesionload_types: list, default = [], lesion load types to use
     # nperms: int, default = 1, number of permutations to run
     # save_models: bool, default = True, whether to save trained models
-    # ensembles: list, default = ['none'], what ensemble to run, "demog", "none"
+    # ensembles: list, default = ['none'], what ensemble to run, "demog", "none", "chaco_ll", "chaco_ll_demog"
     # atlases: list, default = ['fs86subj'], which atlas to use
     # chaco_types: list, default = ['chacovol'], regional or pairwise chaco type "chacovol", "chacoconn"
     # crossval_types: list, default = ['1'], which cross-validation scheme to use
@@ -123,7 +123,7 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
         crossval_types=crossval_types
         crossval_options = ['1', '2', '3', '4', '5']
         if not set(crossval_types).issubset(set(crossval_options)):
-            raise RuntimeError('Warning! Unknown atlas type specified: {}\n Only the following options are allowed: {} \n'.format(atlases, crossval_options))
+            raise RuntimeError('Warning! Unknown cross validation type specified: {}\n Only the following options are allowed: {} \n'.format(atlases, crossval_options))
     else:
         crossval_types = ['1']
         
@@ -172,30 +172,24 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
     if ensemble_atlas:
         ensemble_atlas=ensemble_atlas   
 
-    print(override_rerunmodels)
     print('\n---------------------------------')
     LESIONMASK_PATH = os.path.join("/home/ubuntu/enigma/lesionmasks/")  # Set this path accordingly
     CSV_PATH = os.path.join("/home/ubuntu/enigma/Behaviour_Information_ALL_April7_2022_sorted_CST_12_ll_slnm.csv")  # Set this path accordingly
 
-    label_plot_one=[]
+    labels=[]
 
     r2means=np.empty(shape=(0,nperms))
     corrs=np.empty(shape=(0,nperms))
 
-    loo_counter = 0#counter for the nested loop
     for subset in subsets:
-        print('Starting pipeline..\n') 
         for ensemble in ensembles:
-            print('ensemble = {}'.format(ensemble))
             for lesionload_type in lesionload_types:
-                print('lesionload = {}'.format(lesionload_type))
                 if lesionload_type == 'none' and (('chacovol' in chaco_types) or ('chacoconn' in chaco_types)):
+                    
                     print('Running ChaCo models.........')
                     for atlas in atlases: 
                         for chaco_type in chaco_types:
                             for crossval in crossval_types:
-                                
-                                model_tested = models_tested
                                 
                                 #create the log file name
                                 log_file = results_path + '/{}_{}_{}_{}_{}_crossval{}_ensemble-{}'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, ensemble) + '.log'
@@ -203,13 +197,9 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
 
                                 #format the data for the current parameters
                                 [X, Y, C, lesion_load, site] = create_data_set(CSV_PATH,LESIONMASK_PATH,atlas,covariates, verbose, y_var, chaco_type, subset,1,ll= lesionload_type)
-                                print('X shape: {}'.format(X.shape))
-                                if lesion_load:
-                                    print('lesionload shape: {}'.format(lesion_load.shape))
                                 
-                                #number of sites in the dataset
-                                nsites = np.unique(site).shape[0]
-                                
+                                runningmodel()
+
                                 logprint('Running machine learning model: \n')
                                 logprint('lesionload type: {}'.format(lesionload_type))
                                 logprint('ensemble type: {}'.format(ensemble))
@@ -235,49 +225,26 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
                                     print('Overriding previous model runs!')
                                     set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas)
 
-                            
-                                if crossval == '2':
-                                    n_outer_folds = np.unique(site).shape[0]
-                                if crossval == '5' or crossval == '1' or crossval =='3':
-                                    n_outer_folds=5
+                                n_outer_folds=5
                                 
                                 [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds, ensemble_atlas)
-
+                                r2means=np.append(r2means,np.reshape(np.mean(r2all,axis=1),[-1, nperms]),axis=0)
+                                corrs=np.append(corrs,np.reshape(np.mean(corrall,axis=1),[-1, nperms]),axis=0)
+                                
+                                # Generate labels for figures
                                 if ensemble=='demog':
                                     label =atlas + ' ' + chaco_type + ' ensemble'
                                 elif ensemble=='chaco_ll':
                                     label =atlas + ' ' + chaco_type + ' ensemble'
-
                                 else:
-                                    label = atlas + ' ' + chaco_type
-                                    
+                                    label = atlas + ' ' + chaco_type   
                                 if len(crossval_types)>1:
-                                    label = label + ' ' + crossval
-                                    
+                                    label = label + ' ' + crossval   
                                 if len(subsets)>1:
                                     label = label + ' ' + subset
                             
-                                label_plot_one.append(label)
-                                
-                                # The code checks if the cross validation type is '2', which corresponds to leave-one-site-out cross validation. 
-                                # If it is, it initializes empty arrays for the r2means and corrs and appends the median values of r2all and corrall
-                                # to the arrays. If the cross validation type is not '2', it appends the mean values of r2all and corrall to 
-                                # the r2means and corrs arrays. It also creates figures of the distributions of r2 scores and correlations, but 
-                                # this is commented out in the code.
-                                if crossval=='2': # leave-one-site-out
-                                    if loo_counter == 0:
-                                        # have to initialize these down here so we have nsites available for the size
-                                        r2means_loo=np.empty(shape=(0,nsites))
-                                        corrs_loo=np.empty(shape=(0,nsites))
-                                    r2means_loo=np.append(r2means_loo, np.reshape(np.median(r2all,axis=0), [1, nsites]),axis=0)
-                                    corrs_loo=np.append(corrs_loo,np.reshape(np.median(corrall,axis=0), [1, nsites]),axis=0)
-                                    #kwargs = {'label': label_plot_one, 'r2_scores':r2means_loo, 'correlations':corrs_loo,'results_path': results_path}
-                                    #create_dist_figures(**kwargs)
-                                else:
-                                    r2means=np.append(r2means,np.reshape(np.mean(r2all,axis=1),[-1, nperms]),axis=0)
-                                    corrs=np.append(corrs,np.reshape(np.mean(corrall,axis=1),[-1, nperms]),axis=0)
-                                    
-                                    
+                                labels.append(label)
+                                                                
                                 # The code generates visualization files for the workbench and creates figures using the workbench.
                                 # This is only done if the workbench_vis variable is set to True.
                                 if chaco_type == 'chacovol':   
@@ -318,31 +285,19 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
                             model_tested= ['ridge_nofeatselect']
                             chaco_type = 'NA' 
                             
-                        
                         log_file = results_path + '/{}_{}_{}_{}_{}_crossval{}_ensemble-{}'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval, ensemble) + '.log'
                         
                         logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-                        
-                        #logprint('Started')
-                        if ensemble_atlas:
-                            chaco_atlas = ensemble_atlas
-                        else:
-                            chaco_atlas = atlas
                             
-                        [X, Y, C, lesion_load, site] = create_data_set(CSV_PATH,LESIONMASK_PATH,chaco_atlas,covariates, verbose, y_var, chaco_type,subset,1,ll= lesionload_type)
+                        [X, Y, C, lesion_load, site] = create_data_set(CSV_PATH,LESIONMASK_PATH,ensemble_atlas,covariates, verbose, y_var, chaco_type,subset,1,ll= lesionload_type)
 
-      
-                        logprint('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n ')
-                        logprint('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ Running machine learning model: ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n ')
-                        logprint('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n ')
+                        runningmodel()
 
                         logprint('lesionload type: {}'.format(lesionload_type))
                         logprint('ensemble type: {}'.format(ensemble))
                         logprint('atlas type: {}'.format(atlas))
                         logprint('chacotype: {}'.format(chaco_type))
                         logprint('crossval type: {}'.format(crossval))
-
-                        nsites = np.unique(site).shape[0]
 
                         if not override_rerunmodels: # if we don't want to override model results
                             files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset,ensemble_atlas)
@@ -353,21 +308,20 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
                                 output_path = output_fullpath.replace(results_path, '')
                             else:
                                 if not figs_only: # if figs_only then we just want the output path where the files are located. if not, then actually run the model.
-                                    set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,chaco_atlas)
+                                    set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas)
                         else: # we do want to override previous results
                             print('Overriding previous model runs!')
-                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,chaco_atlas)
+                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas)
 
-                        if crossval == '2':
-                            n_outer_folds = np.unique(site).shape[0]
-                        elif crossval == '5' or crossval == '1' or crossval =='3' or crossval == '4':
-                            n_outer_folds =5
+                        n_outer_folds =5
                                                 
-                        [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds,chaco_atlas)
-
+                        [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds,ensemble_atlas)
+                        r2means=np.append(r2means,np.reshape(np.mean(r2all,axis=1),[-1, nperms]),axis=0)
+                        corrs=np.append(corrs,np.reshape(np.mean(corrall,axis=1), [-1, nperms]),axis=0)
+                        
+                        # Generate labels for figures
                         if ensemble == 'chaco_ll':
                             label = atlas + ' chaco_ll_ensemble'
-                            
                         elif ensemble=='demog':
                             label =atlas + ' ensemble'
                         else:
@@ -377,22 +331,9 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
                         if len(subsets)>1:
                             label = label + ' ' + subset
                             
-                            
-                        label_plot_one.append(label)
-
-
-                        if crossval=='2': # leave-one-site-out
-                            if loo_counter == 0:
-                                # have to initialize these down here so we have nsites available for the size
-                                r2means_loo=np.empty(shape=(0,nsites))
-                                corrs_loo=np.empty(shape=(0,nsites))
-                            r2means_loo=np.append(r2means_loo, np.reshape(np.median(r2all,axis=0), [-1, nsites]),axis=0)
-                            corrs_loo=np.append(corrs_loo,np.reshape(np.median(corrall,axis=0), [-1, nsites]),axis=0)
-                            loo_counter = loo_counter+1
-                        else:
-                            r2means=np.append(r2means,np.reshape(np.mean(r2all,axis=1),[-1, nperms]),axis=0)
-                            corrs=np.append(corrs,np.reshape(np.mean(corrall,axis=1), [-1, nperms]),axis=0)
+                        labels.append(label)
                         
+                        # The code generates boxplots of the lesion load beta coefficients.
                         if atlas == 'lesionload_all' or atlas=='lesionload_all_2h':
                             kwargs_llfigs = {'results_path':results_path, 'output_path':output_path, 'analysis_id':analysis_id,\
                                 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
@@ -403,30 +344,16 @@ def run_models(y_var=None, subsets=None, models_tested=None, verbose=None, covar
                                     'model_tested':model_tested, 'crossval':crossval,'scenesdir': scenesdir, 'wbpath':wbpath}
                             #generate_smatt_ll_wb_figs(**kwargs_llfigs)
                             
-    if 'r2means_loo' in locals():
-        print('leave one out')
-        r2means = r2means_loo
-        corrs = corrs_loo
-
     if 'chaco_ll' in ensembles:
         subsets = ['one', 'two']
     if 'demog' in ensembles and (len(ensembles) >1):
         subsets = ['one', 'two']
-    kwargs = {'label': label_plot_one, 'r2_scores':r2means, 'correlations':corrs,'results_path': results_path, 'analysis_id': analysis_id, \
+        
+    kwargs = {'label': labels, 'r2_scores':r2means, 'correlations':corrs,'results_path': results_path, 'analysis_id': analysis_id, \
             'subsets': subsets}
-    
-    print(subsets)
-    print(label_plot_one)
-    print('boxplots == {}'.format(boxplots))
-    if boxplots:
-        # create figures that summarize models' performance
-        if crossval=='2':
-            # if leave one out, we are taking the mean across the permutations where each 'point' is a site
-            create_performance_figures_loo(**kwargs)
-        else:
-            # if we are not looking at leave one out, we are plotting each permutation separately.
-            print('Making boxplots..')
-            create_performance_figures(**kwargs)
+
+    print('Making boxplots..')
+    create_performance_figures(**kwargs)
         
         
         

@@ -1542,7 +1542,6 @@ def check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_
                 print('Files already exist in folder {}!'.format(folder))
                 return True, folder
         else:
-            #filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_scores.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
             filename = folder + '/{}_{}_{}_{}_{}_crossval{}_perm99_beta_coeffs.npy'.format(atlas, y_var, chaco_type, subset, model_tested[0],crossval)
             
             if os.path.exists(filename):
@@ -1552,3 +1551,7 @@ def check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_
     return False, results_path
 
 
+def runningmodel():
+    logprint('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n ')
+    logprint('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ Running machine learning model: ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n ')
+    logprint('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ \n ')
