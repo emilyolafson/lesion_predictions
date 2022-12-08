@@ -243,7 +243,7 @@ if set(['7']).issubset(set(run_analyses)):
 scenesdir = '/home/ubuntu/enigma/motor_predictions/wb_files/'
 hcpdir ='/home/ubuntu/enigma/motor_predictions/wb_files/HCP_S1200_GroupAvg_v1/'
 wbpath = '/home/ubuntu/enigma/motor_predictions/wb_files/workbench_ubuntu/bin_linux64'
-run_analyses = ['8'] # list of analyses to run (corresponds to analysis folders "analysis_X")
+run_analyses = [] # list of analyses to run (corresponds to analysis folders "analysis_X")
 generate_figs_only = False # whether to run ML models or just generate figures
 workbench_vis = False # 
 boxplots = True
@@ -258,7 +258,7 @@ if set(['8']).issubset(set(run_analyses)):
                 'lesionload_types':  ['M1', 'all','all_2h'], \
                 'crossval_types':['1'],\
                 'subsets': ['chronic'], \
-                'ensembles':['chaco_ll_demog'],\
+                'ensembles':['none', 'chaco_ll', 'demog', 'chaco_ll_demog'],\
                 'ensemble_atlas': 'fs86subj', \
                 'atlases':['fs86subj', 'shen268'],\
                 'nperms':100, \
@@ -271,6 +271,37 @@ if set(['8']).issubset(set(run_analyses)):
                 'wbpath': wbpath}
         run_models(**kwargs)
         
+
+scenesdir = '/home/ubuntu/enigma/motor_predictions/wb_files/'
+hcpdir ='/home/ubuntu/enigma/motor_predictions/wb_files/HCP_S1200_GroupAvg_v1/'
+wbpath = '/home/ubuntu/enigma/motor_predictions/wb_files/workbench_ubuntu/bin_linux64'
+run_analyses = ['9'] # list of analyses to run (corresponds to analysis folders "analysis_X")
+generate_figs_only = False # whether to run ML models or just generate figures
+workbench_vis = False # 
+boxplots = True
+override_rerunmodels = False
+
+generate_wb_figures_setup(hcpdir, scenesdir)
+if set(['9']).issubset(set(run_analyses)):  
+        kwargs = {'covariates':['AGE', 'SEX', 'DAYS_POST_STROKE'], \
+                'results_path':'/home/ubuntu/enigma/results',\
+                'output_path': '/analysis_9',\
+                'models_tested': ['ridge'],\
+                'lesionload_types':  ['M1', 'all','all_2h'], \
+                'crossval_types':['5'],\
+                'subsets': ['chronic'], \
+                'ensembles':['none', 'chaco_ll', 'demog', 'chaco_ll_demog'],\
+                'ensemble_atlas': 'fs86subj', \
+                'atlases':['fs86subj', 'shen268'],\
+                'nperms':100, \
+                'figs_only':generate_figs_only,\
+                'analysis_id':'analysis_9', \
+                'boxplots':boxplots,\
+                'override_rerunmodels': override_rerunmodels,\
+                'workbench_vis':workbench_vis,\
+                'scenesdir': scenesdir,\
+                'wbpath': wbpath}
+        run_models(**kwargs)
         
         
 if set(['6']).issubset(set(run_analyses)):  
