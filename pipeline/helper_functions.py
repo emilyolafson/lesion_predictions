@@ -20,59 +20,6 @@ warnings.filterwarnings('ignore')
 
 # Function comments are enhanced with ChatGPT.
 
-
-def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
-    '''
-    FROM: https://stackoverflow.com/questions/7404116/defining-the-midpoint-of-a-colormap-in-matplotlib
-    Function to offset the "center" of a colormap. Useful for
-    data with a negative min and positive max and you want the
-    middle of the colormap's dynamic range to be at zero.
-
-    Input
-    -----
-      cmap : The matplotlib colormap to be altered
-      start : Offset from lowest point in the colormap's range.
-          Defaults to 0.0 (no lower offset). Should be between
-          0.0 and `midpoint`.
-      midpoint : The new center of the colormap. Defaults to 
-          0.5 (no shift). Should be between 0.0 and 1.0. In
-          general, this should be  1 - vmax / (vmax + abs(vmin))
-          For example if your data range from -15.0 to +5.0 and
-          you want the center of the colormap at 0.0, `midpoint`
-          should be set to  1 - 5/(5 + 15)) or 0.75
-      stop : Offset from highest point in the colormap's range.
-          Defaults to 1.0 (no upper offset). Should be between
-          `midpoint` and 1.0.
-    '''
-    cdict = {
-        'red': [],
-        'green': [],
-        'blue': [],
-        'alpha': []
-    }
-
-    # regular index to compute the colors
-    reg_index = np.linspace(start, stop, 257)
-
-    # shifted index to match the data
-    shift_index = np.hstack([
-        np.linspace(0.0, midpoint, 128, endpoint=False), 
-        np.linspace(midpoint, 1.0, 129, endpoint=True)
-    ])
-
-    for ri, si in zip(reg_index, shift_index):
-        r, g, b, a = cmap(ri)
-
-        cdict['red'].append((si, r, r))
-        cdict['green'].append((si, g, g))
-        cdict['blue'].append((si, b, b))
-        cdict['alpha'].append((si, a, a))
-
-    newcmap = matplotlib.colors.LinearSegmentedColormap(name, cdict)
-    plt.register_cmap(cmap=newcmap)
-
-    return newcmap
-
 def prepare_data(X):
     '''Clean X-data (remove zero-value input variables)'''
 
@@ -157,43 +104,6 @@ def naive_pearson_cor(X, Y):
             result[i,j] = r
     return result[0]
 
-
-def feature_select_correlation(x_train, x_test, y, a):
-    # The feature_select_correlation function takes as input the training and test data matrices x_train and 
-    # x_test, the variable to be predicted y, and the number of features to retain a. The function first checks that 
-    # the number of features in the input data is greater than a. Then it calculates the absolute Pearson correlation 
-    # between each feature and the target variable y. The function returns the indices of the top a features, as well as 
-    # the training and test data matrices with only the selected features. The returned matrices and indices can be used 
-    # for training and testing a machine learning model.
-    
-    """Return values for the top a features of x based on abs. value Spearman correlation with y.
-         Inputs:
-             x_train = input matrix for training subjects
-             x_test = input matrix for test subjects
-             y = variable/s predicted 
-             a = number of features to retain
-        
-        Returns:
-            x_train_featselect = training data with selected features 
-            x_test_featselect = test data matrix with selected features
-            ind = indices of top a features """
-    
-    # check that dimension of x is greater than a
-    if x_train.shape[1]<a:
-        raise Exception('Number of features in X is less than the number of features specified to retain (a).') 
-        
-        
-    # Feature selection: use only the top n features based on correlation of training features with y
-    correl = abs(np_pearson_cor(x_train, y))
-    ind = np.argpartition(correl, -a, 0)[-a:] # select top a features
-
-    # return training/test data with only top features
-    x_train_featselect=np.squeeze(x_train[:,ind],2)
-    
-    x_test_featselect=np.squeeze(x_test[:,ind],2)
-
-    return x_train_featselect,x_test_featselect, ind
-
 def determine_featselect_range(X):
     #This function determines the range of values to use for the k parameter in the SelectKBest
     # feature selection method. The k parameter specifies the number of top-ranking features to select.
@@ -252,9 +162,6 @@ def get_models(model_type='regression', model_list=None):
         if 'log' in model_list:
             log = Pipeline([('logistic', LogisticRegression(class_weight='balanced', solver='liblinear', random_state=0))])
             mdls.append(log)
-        if 'xgboost' in model_list:
-            xgboost = Pipeline([('xgboost', XGBClassifier(eval_metric='auc', nthread=1, random_state=0))])
-            mdls.append(xgboost)
         if 'rf' in model_list:
             rf = Pipeline([('rf', RandomForestClassifier())])
             mdls.append(rf)
@@ -1336,7 +1243,6 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
     mdl_label = model_tested
 
     rootname = os.path.join(results_path, output_path,'{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval))
-
     r2scores_allperms=np.zeros(shape=(nperms, n_outer_folds))
     correlation_allperms=np.zeros(shape=(nperms, n_outer_folds))
     
@@ -1444,14 +1350,11 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
         threshold_90 = n_outer_folds_total-n_outer_folds_total/10 # 90%
         threshold_99 = n_outer_folds_total-n_outer_folds_total/100 # 99%
         nonzero_outerfolds = np.count_nonzero(betas_allperms,axis=0)
-        print(nonzero_outerfolds)
         mean_betas_allperms = np.median(betas_allperms,axis=0)
         mean_betas_allperms_0 = mean_betas_allperms
-        print((nonzero_outerfolds > threshold_50))
         mean_betas_allperms_50 = mean_betas_allperms*(nonzero_outerfolds > threshold_50)
         mean_betas_allperms_90 = mean_betas_allperms*(nonzero_outerfolds > threshold_90)
         mean_betas_allperms_99 = mean_betas_allperms*(nonzero_outerfolds > threshold_99)
-        print(mean_betas_allperms_99)
         np.savetxt(rootname +'_meanbetas_allperms_0.txt', mean_betas_allperms_0)
         np.savetxt(rootname +'_meanbetas_allperms_50.txt', mean_betas_allperms_50)
         np.savetxt(rootname +'_meanbetas_allperms_90.txt', mean_betas_allperms_90)
@@ -1488,6 +1391,7 @@ def check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_
     subfolders = glob.glob(os.path.join(results_path, 'analysis_*'),recursive = False)
     print('\n')
     for folder in subfolders:
+
         if ensemble == 'demog':
             filename = os.path.join(folder, '{}_{}_{}_{}_{}_crossval{}_perm99_ensemble_demog_scores.npy'.format(atlas, y_var, chaco_type, subset, model_tested,crossval))
 

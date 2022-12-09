@@ -21,26 +21,6 @@ def create_performance_figures(r2_scores, correlations,label, results_path, anal
     # It also takes in the number of sets and uses that to determine the layout of the plots.
 
     title = ''
-    label = list(map(lambda x: x.replace('chacoll+demogfs86subj', '+ ChaCo (fs86) + demog.'), label))
-    label = list(map(lambda x: x.replace('chacoll+demogshen268', '+ ChaCo (shen268) + demog.'), label))
-
-    label = list(map(lambda x: x.replace('chaco_llfs86subj', '+ ChaCo (fs86)'), label))
-    label = list(map(lambda x: x.replace('lesionload_m1', 'M1 CST-LL'), label))
-
-    label = list(map(lambda x: x.replace('M1 CST-LL demog', 'M1 CST-LL + demog.'), label))
-    label = list(map(lambda x: x.replace('lesionload_all_2h', 'Bi. CST-LL'), label))
-
-    label = list(map(lambda x: x.replace('lesionload_all', 'Ipsi. CST-LL'), label))
-
-    label = list(map(lambda x: x.replace('Ipsi. CST-LL demog', 'Ipsi. CST-LL + demog.'), label))
-    label = list(map(lambda x: x.replace('Bi. CST-LL demog', 'Bi. CST-LL + demog.'), label))
-
-    label = list(map(lambda x: x.replace('lesionload_slnm', 'sLNM-LL'), label))
-
-
-    label = list(map(lambda x: x.replace('fs86subj chacovol', 'FS 86-region ChaCo'), label))
-    label = list(map(lambda x: x.replace('shen268 chacovol', 'Shen 268-region ChaCo'), label))
-
     xticklabels = label
 
     n_sets = subsets

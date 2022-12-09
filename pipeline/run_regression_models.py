@@ -24,44 +24,9 @@ reload(helper_functions_figures)
 # options for visualizing the results using the Connectome Workbench software and generating box plots of the results.
 
 
-def run_models(LESIONMASK_PATH, CSV_PATH, y_var, subsets, model_tested, verbose, covariates, lesionload_types, nperms, save_models, ensembles,hcp_dir, atlases, chaco_types, crossval_types, null, results_path, output_path, figs_only, analysis_id, workbench_vis,scenesdir, wbpath,boxplots, override_rerunmodels, ensemble_atlas):
-
-    model_options= ['ridge', 'lasso', 'elastic_net', 'ridge_nofeatselect', 'linear_regression', 'svm', 'ensemble_reg']
-    if not set([model_tested]).issubset(set(model_options)):
-        raise RuntimeError('Warning! Unknown model option specified {} \n Only the following options are allowed {} \n'.format(model_tested, model_options))
-
-    lesionload_options = ['M1', 'none', 'all', 'all_2h', 'slnm']
-    if not set(lesionload_types).issubset(set(lesionload_options)):
-        raise RuntimeError('Warning! Unknown lesion load type specified: {}\n Only the following options are allowed: {} \n'.format(lesionload_types, lesionload_options))
-
-    ensemble_options =['none', 'demog', 'chaco_ll', 'chaco_ll_demog']
-    if not set(ensembles).issubset(set(ensemble_options)):
-        raise RuntimeError('Warning! Unknown ensemble type specified: {}\n Only the following options are allowed: {} \n'.format(ensembles, ensemble_options))
-
-    atlas_options = ['fs86subj', 'shen268']
-    print(atlases)
-    print(set(atlases))
-    print(set(atlas_options))
-    if not set(atlases).issubset(set(atlas_options)):
-        raise RuntimeError('Warning! Unknown atlas type specified: {}\n Only the following options are allowed: {} \n'.format(atlases, atlas_options))
-
-    chaco_options = ['chacovol', 'chacoconn']
-    if not set(chaco_types).issubset(set(chaco_options)):
-        raise RuntimeError('Warning! Unknown atlas type specified: {}\n Only the following options are allowed: {} \n'.format(chaco_types, chaco_options))
-
-    crossval_options = ['1', '2', '3', '4', '5']
-    if not set(crossval_types).issubset(set(crossval_options)):
-        raise RuntimeError('Warning! Unknown cross validation type specified: {}\n Only the following options are allowed: {} \n'.format(atlases, crossval_options))
-
-
-    if os.path.exists(os.path.join(results_path, output_path)):
-        print('Path {} exists. Potentially overwriting files.'.format(os.path.join(results_path, output_path)))
-    else:
-        print('Path {} does not exist. Creating it now.'.format(os.path.join(results_path, output_path)))
-        os.makedirs(os.path.join(results_path, output_path))
+def run_models(site_colname, csv_path, y_var,nemo_path, motor_colname,subid_colname,chronicity_colname,subsets,nemo_settings, model_specified, verbose, covariates, lesionload_types, nperms, save_models, ensembles,hcp_dir, atlases, chaco_types, crossval_types, null, results_path, output_path, figs_only, analysis_id, workbench_vis,scenesdir, wbpath,boxplots, override_rerunmodels, ensemble_atlas):
 
     labels=[]
-
     r2means=np.empty(shape=(0,nperms))
     corrs=np.empty(shape=(0,nperms))
 
@@ -70,17 +35,14 @@ def run_models(LESIONMASK_PATH, CSV_PATH, y_var, subsets, model_tested, verbose,
             for lesionload_type in lesionload_types:
                 if lesionload_type == 'none' and (('chacovol' in chaco_types) or ('chacoconn' in chaco_types)):
                     
-                    print('Running ChaCo models.........')
+                    model_tested = model_specified
+                    print('\nRunning ChaCo models.........')
                     for atlas in atlases: 
                         for chaco_type in chaco_types:
                             for crossval in crossval_types:
-                                
-                                #create the log file name
-                                log_file = os.path.join(results_path + '{}_{}_{}_{}_{}_crossval{}_ensemble-{}'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, ensemble) + '.log')
-                                logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
                                 #format the data for the current parameters
-                                [X, Y, C, lesion_load, site] = create_data_set(CSV_PATH,LESIONMASK_PATH,atlas,covariates, verbose, y_var, chaco_type, subset,1,ll= lesionload_type)
+                                [X, Y, C, lesion_load, site] = create_data_set(csv_path,site_colname,nemo_path,motor_colname,subid_colname,chronicity_colname,atlas,covariates, verbose, y_var, chaco_type, subset,1,nemo_settings=nemo_settings,ll= lesionload_type)
                                 
                                 if verbose:
                                     announce_runningmodel(lesionload_type, ensemble, atlas, chaco_type, crossval, override_rerunmodels)
@@ -94,6 +56,7 @@ def run_models(LESIONMASK_PATH, CSV_PATH, y_var, subsets, model_tested, verbose,
                                     if files_exist: # we dont want to override but dont recalculate what's already been done
                                         output_fullpath = folder
                                         output_path = output_fullpath.replace(results_path, '').replace('/', '')
+     
                                         print('\n')
                                     else:
                                         if not figs_only: # if figs_only then we just want the output path where the files are located. if not, then actually run the model.
@@ -107,22 +70,6 @@ def run_models(LESIONMASK_PATH, CSV_PATH, y_var, subsets, model_tested, verbose,
                                 [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds, ensemble_atlas)
                                 r2means=np.append(r2means,np.reshape(np.mean(r2all,axis=1),[-1, nperms]),axis=0)
                                 corrs=np.append(corrs,np.reshape(np.mean(corrall,axis=1),[-1, nperms]),axis=0)
-                                
-                                # Generate labels for figures
-                                if ensemble=='demog':
-                                    label =atlas + ' ' + chaco_type + ' demog'
-                                elif ensemble=='chaco_ll':
-                                    label =atlas + ' ' + chaco_type + ' chacoll'
-                                elif ensemble=='chaco_ll_demog':
-                                    label =atlas + ' ' + chaco_type + ' chacoll+demog'
-                                else:
-                                    label = atlas + ' ' + chaco_type   
-                                if len(crossval_types)>1:
-                                    label = label + ' ' + crossval   
-                                if len(subsets)>1:
-                                    label = label + ' ' + subset
-                            
-                                labels.append(label)
                                                                 
                                 # The code generates visualization files for the workbench and creates figures using the workbench.
                                 # This is only done if the workbench_vis variable is set to True.
@@ -137,6 +84,25 @@ def run_models(LESIONMASK_PATH, CSV_PATH, y_var, subsets, model_tested, verbose,
                                         print('\nMaking workbench visualization files..\n')
                                         print('Making workbench figures..\n')
                                         generate_wb_figures(**kwargs_workbench)
+                                        
+                                # Generate labels for boxplots
+                                if atlas == 'fs86subj':
+                                    atlaslabel = 'ChaCo (fs86)'
+                                elif atlas == 'shen268':
+                                    atlaslabel = 'ChaCo (shen268)'
+                                    
+                                if ensemble == 'none':
+                                    label = atlaslabel
+                                elif ensemble=='demog':
+                                    label =atlaslabel + ' + demog.'
+
+                                if len(crossval_types)>1:
+                                    label = label + ' ' + crossval
+                                if len(subsets)>1:
+                                    label = label + ' ' + subset
+                                    
+                                labels.append(label)
+
 
                 else: #chaco_ll and chaco_ll_demog run here.
                     
@@ -144,13 +110,9 @@ def run_models(LESIONMASK_PATH, CSV_PATH, y_var, subsets, model_tested, verbose,
                         print('crossval = {}'.format(crossval))
 
                         atlas, model_tested, chaco_type = set_vars_for_ll(lesionload_type)
-                            
-                        log_file = os.path.join(results_path + '{}_{}_{}_{}_{}_crossval{}_ensemble-{}'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, ensemble) + '.log')
-                        
-                        logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-                            
-                        [X, Y, C, lesion_load, site] = create_data_set(CSV_PATH,LESIONMASK_PATH,ensemble_atlas,covariates, verbose, y_var, chaco_type,subset,1,ll= lesionload_type)
-                        
+
+                        [X, Y, C, lesion_load, site] = create_data_set(csv_path,site_colname,nemo_path,motor_colname, subid_colname,chronicity_colname,ensemble_atlas,covariates, verbose, y_var, chaco_type,subset,1,nemo_settings,ll= lesionload_type)
+                        print(verbose)
                         if verbose:
                             announce_runningmodel(lesionload_type, ensemble, atlas, chaco_type, crossval, override_rerunmodels)
                         
@@ -158,9 +120,8 @@ def run_models(LESIONMASK_PATH, CSV_PATH, y_var, subsets, model_tested, verbose,
                             files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset,ensemble_atlas)
                             
                             if files_exist: # we dont want to override but dont recalculate what's already been done
-                                print('folder')
                                 output_fullpath = folder
-                                output_path = output_fullpath.replace(results_path, '')
+                                output_path = output_fullpath.replace(results_path, '').replace('/', '')
                             else:
                                 if not figs_only: # if figs_only then we just want the output path where the files are located. if not, then actually run the model.
                                     set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas)
@@ -174,13 +135,28 @@ def run_models(LESIONMASK_PATH, CSV_PATH, y_var, subsets, model_tested, verbose,
                         r2means=np.append(r2means,np.reshape(np.mean(r2all,axis=1),[-1, nperms]),axis=0)
                         corrs=np.append(corrs,np.reshape(np.mean(corrall,axis=1), [-1, nperms]),axis=0)
                         
-                        # Generate labels for figures
+                        # The code generates boxplots of the lesion load beta coefficients.
+                        if atlas == 'lesionload_all' or atlas=='lesionload_all_2h':
+                            kwargs_llfigs = {'results_path':results_path, 'output_path':output_path, 'analysis_id':analysis_id,\
+                                'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
+                                    'model_tested':model_tested, 'crossval':crossval}
+                            generate_smatt_ll_figures(**kwargs_llfigs)
+                        
+
+                        # Generate labels for boxplots
+                        if atlas == 'lesionload_all':
+                            atlaslabel = 'Ipsi. CST-LL'
+                        elif atlas == 'lesionload_all_2h':
+                            atlaslabel = 'Bi. CST-LL'
+                        elif atlas == 'lesionload_m1':
+                            atlaslabel = 'M1 CST-LL'
+
                         if ensemble == 'chaco_ll':
-                            label = atlas + ' chaco_ll' + ensemble_atlas
+                            label = atlaslabel + ' ChaCo ' + '('+ensemble_atlas+')'
                         elif ensemble=='demog':
-                            label =atlas + ' demog'
+                            label =atlaslabel + ' + demog.'
                         elif ensemble=='chaco_ll_demog':
-                            label =atlas + ' chacoll+demog' + ensemble_atlas
+                            label =atlaslabel + ' ChaCo ' + '('+ensemble_atlas+')' + ' + demog.'
                         else:
                             label = atlas
                         if len(crossval_types)>1:
@@ -189,21 +165,15 @@ def run_models(LESIONMASK_PATH, CSV_PATH, y_var, subsets, model_tested, verbose,
                             label = label + ' ' + subset
                             
                         labels.append(label)
-                        
-                        # The code generates boxplots of the lesion load beta coefficients.
-                        if atlas == 'lesionload_all' or atlas=='lesionload_all_2h':
-                            kwargs_llfigs = {'results_path':results_path, 'output_path':output_path, 'analysis_id':analysis_id,\
-                                'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                                    'model_tested':model_tested, 'crossval':crossval}
-                            generate_smatt_ll_figures(**kwargs_llfigs)
+
 
                             
     subsets = len(ensembles)
     kwargs = {'label': labels, 'r2_scores':r2means, 'correlations':corrs,'results_path': results_path, 'analysis_id': analysis_id, \
             'subsets': subsets}
-
-    print('Making boxplots..')
-    create_performance_figures(**kwargs)
+    if boxplots:
+        print('Making boxplots..')
+        create_performance_figures(**kwargs)
         
         
         
