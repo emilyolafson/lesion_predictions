@@ -1,5 +1,5 @@
 ![Pipeline](pipeline.png)
-
+```
 usage: parse_args.py [-h] [--nemo_path NEMO_PATH]
                      [--nemo_settings NEMO_SETTINGS]
                      [--motor_colname MOTOR_COLNAME]
@@ -106,3 +106,4 @@ optional arguments:
   --override_rerunmodels OVERRIDE_RERUNMODELS
                         Whether to re-run models even if already run with same
                         parameters, default=False
+```
