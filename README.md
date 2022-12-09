@@ -1,4 +1,29 @@
 
+# Project Title
+
+A brief description of the project and its purpose.
+
+## Getting Started
+
+Instructions for how to set up the project, including any dependencies that need to be installed.
+
+## Usage
+
+Instructions for how to use the project, including any necessary command line arguments or input files.
+
+## Contributing
+
+If you want to contribute to the project, please follow these guidelines:
+
+- Fork the repository
+- Create a new branch for your changes
+- Make your changes and commit them to your branch
+- Submit a pull request for your changes to be reviewed and merged
+
+## License
+
+Include information about the license of the project, such as which open source license it is released under.
+
 This repository contains code to predict chronic motor scores from lesion data.
 
 

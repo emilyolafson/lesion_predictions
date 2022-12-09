@@ -1,4 +1,3 @@
-LESIONMASK_PATH = ?
-CSV_PATH = 
+![Pipeline](pipeline.png)
 
 
