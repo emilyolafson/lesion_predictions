@@ -18,7 +18,6 @@ scipy==1.6.2
 
 Instructions for how to use the project, including any necessary command line arguments or input files.
 
-## Contributing
 
 If you want to contribute to the project, please follow these guidelines:
 
@@ -62,4 +61,13 @@ Code:
 # Estimate structural disconnection
 ![nemo_pic](figures/NetworkModificationTool.png)
 The Network Modification Tool [NeMo 2.1](https://kuceyeski-wcm-web.s3.us-east-1.amazonaws.com/upload.html) can be used to estimate regional or pairwise change in connectivity (ChaCo) scores, given a binary lesion mask.
+
+## Contributing
+
+If you want to contribute to the project, please follow these guidelines:
+
+- Fork the repository
+- Create a new branch for your changes
+- Make your changes and commit them to your branch
+- Submit a pull request for your changes to be reviewed and merged
 
