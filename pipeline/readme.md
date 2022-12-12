@@ -1,4 +1,5 @@
 ![Pipeline](pipeline.png)
+```
 usage: parse_args.py [-h] [--nemo_path NEMO_PATH] [--nemo_settings NEMO_SETTINGS] [--yvar_colname YVAR_COLNAME] [--subid_colname SUBID_COLNAME] [--site_colname SITE_COLNAME] [--chronicity_colname CHRONICITY_COLNAME] [--csv_path CSV_PATH] [--y_var Y_VAR] [--subsets SUBSETS]
                      [--model_specified MODEL_SPECIFIED] [--verbose VERBOSE] [--covariates COVARIATES] [--lesionload_types LESIONLOAD_TYPES] [--nperms NPERMS] [--save_models SAVE_MODELS] [--ensembles ENSEMBLES] [--atlases ATLASES] [--chaco_types CHACO_TYPES] [--crossval_types CROSSVAL_TYPES]
                      [--null NULL] [--results_path RESULTS_PATH] [--output_path OUTPUT_PATH] [--figs_only FIGS_ONLY] [--analysis_id ANALYSIS_ID] [--workbench_vis WORKBENCH_VIS] [--scenesdir SCENESDIR] [--hcp_dir HCP_DIR] [--wbpath WBPATH] [--boxplots BOXPLOTS] [--ensemble_atlas ENSEMBLE_ATLAS]
@@ -60,3 +61,4 @@ optional arguments:
                         Which ChaCo atlas to use, if running ensemble models with lesion data + ChaCo scores, options 'none','fs86subj', 'shen268', default='fs86subj
   --override_rerunmodels OVERRIDE_RERUNMODELS
                         Whether to re-run models even if already run with same parameters, default=False
+```
