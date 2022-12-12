@@ -95,9 +95,9 @@ def load_chaco_data(ids,chaco_type):
                 X = np.concatenate((X, data), axis=0)   
     return X
             
-def remove_missing_motor(df, motor_colname):
+def remove_missing_yvar(df, yvar_colname):
 
-    idx=np.isnan(df[motor_colname])
+    idx=np.isnan(df[yvar_colname])
     df=df[~idx]
 
     return df 
@@ -157,11 +157,11 @@ def get_chronicity_subset(df, subset, subid_colname, chronicity_colname):
 
     return df_final, ids
 
-def create_data_set(csv_path=None, site_colname = None, nemo_path=None,motor_colname = None, subid_colname=None,chronicity_colname=None,atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None, nemo_settings=None, ll=None):
+def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_colname = None, subid_colname=None,chronicity_colname=None,atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None, nemo_settings=None, ll=None):
 
     df = load_csv(csv_path)
     
-    df = remove_missing_motor(df, motor_colname)
+    df = remove_missing_yvar(df, yvar_colname)
     
     all_cov_labels = df.columns.values # Age, sex, days post stroke, chronicity, lesioned hem 
     
@@ -220,13 +220,11 @@ def create_data_set(csv_path=None, site_colname = None, nemo_path=None,motor_col
         site = label_encoder.fit_transform(site)       
     else:
         site = []
+        
     # load y data
-    if y_var == 'normed_motor_scores':
-        y = df_final[motor_colname].values
+    y = df_final[yvar_colname].values
        # y = np.reshape(y, (len(y),1))
-
-    # load lesionload
-
+    
     llvars = ['M1_CST', 'PMd_CST', 'PMv_CST','S1_CST','SMA_CST','preSMA_CST']
     ll_2h_vars =['L_M1_CST', 'L_PMd_CST', 'L_PMv_CST','L_S1_CST','L_SMA_CST','L_preSMA_CST','R_M1_CST', 'R_PMd_CST', 'R_PMv_CST','R_S1_CST','R_SMA_CST','R_preSMA_CST']
     slnm_vars = ['sLNM_LL']

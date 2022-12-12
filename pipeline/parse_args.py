@@ -12,7 +12,7 @@ def main(args):
     
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Train a neural net")
+    parser = argparse.ArgumentParser(description="Set up and run machine learning pipeline for lesion biomarker data.")
 
     # lesionmask_path: str, default ='/home/ubuntu/enigma/lesionmasks/', path to niftis
     #parser.add_argument("--lesionmask_path", default='/home/ubuntu/enigma/lesionmasks/',
@@ -20,27 +20,27 @@ if __name__ == '__main__':
     
     # nemo_path: str, default ='/home/ubuntu/enigma/lesionmasks/', path to niftis
     parser.add_argument("--nemo_path", default='/home/ubuntu/enigma/lesionmasks/',
-      help="Absolute path where NeMo outputs (.pkl files) are located, default='/home/ubuntu/enigma/lesionmasks/'")
+      help="Absolute path where NeMo outputs (subject_*_mean.pkl files) are located, default='/home/ubuntu/enigma/lesionmasks/'")
     
     # nemo_path: str, default ='/home/ubuntu/enigma/lesionmasks/', path to nemo outputs
     parser.add_argument("--nemo_settings", default=['1mm','sdstream'],type=lambda s: [item.replace(" ", "") for item in s.split(',')],
-      help="Nemo settings, default=['1mm','sdstream']")
+      help="Settings used in Network Modification Tool (used to access output files). Default=['1mm','sdstream']")
     
-    # motor_colname: str, default ='NORMED_MOTOR'', 
-    parser.add_argument("--motor_colname", default='NORMED_MOTOR',
-      help="Column name of motor scores in .csv file, default='NORMED_MOTOR'")
+    # yvar_colname: str, default ='NORMED_MOTOR'', 
+    parser.add_argument("--yvar_colname", default='NORMED_MOTOR',
+      help="Column name of motor scores (to be predicted) in .csv file, default='NORMED_MOTOR'")
     
     # subid_colname: str, default ='BIDS_ID'', 
     parser.add_argument("--subid_colname", default='BIDS_ID',
       help="Column name of subject IDs in .csv file, default='BIDS_ID'")
     
     # site_colname: str, default ='SITE'',
-    parser.add_argument("--site_colname", default='SITE',
-      help="Column name of sites variriable in .csv file, options: 'site', 'none', 'SITE', etc. default='SITE'")
+    parser.add_argument("--site_colname", default='none',
+      help="Column name of the sites variable in .csv file. If subjects are all from the same site, specify 'none' (default). Options: 'site', 'none', 'SITE', etc. default='none'")
     
     # chronicity_colname: str, default ='CHRONICITY'', 
-    parser.add_argument("--chronicity_colname", default='CHRONICITY',
-      help="Column name of chronicity variable .csv file. Chronic subjects have value 180, acute subjects have value 90, default='CHRONICITY'")
+    parser.add_argument("--chronicity_colname", default='none',
+      help="Column name of chronicity variable .csv file. Chronic subjects should have a value of 180, acute subjects should have value 90. If subjects are all of one type, specify 'none' (default). Default='none'")
     
     # csv_path: str, default ='/home/ubuntu/enigma/Behaviour_Information_ALL_April7_2022_sorted_CST_12_ll_slnm.csv', dependent variable in regression models
     parser.add_argument("--csv_path", default='/home/ubuntu/enigma/Behaviour_Information_ALL_April7_2022_sorted_CST_12_ll_slnm.csv',
@@ -57,8 +57,8 @@ if __name__ == '__main__':
       help="Subset of data to use for analysis, options: 'acute', 'chronic', 'none' default=['chronic']")
 
     # model_specified: list, default = ['ridge'], machine learning models to run
-    parser.add_argument("--model_specified", default='ridge',
-      help="Machine learning models to run, default='ridge'")
+    parser.add_argument("--model_specified", default='none',
+      help="Machine learning model used for ChaCo score-based prediction. Note that models for lesion load predictions are hard-coded. If running only lesion-load based predictions, specify 'none', Default='none'")
 
     # verbose: bool, default = True, whether to print out verbose output
     parser.add_argument("--verbose", default=True,type=bool,
@@ -145,9 +145,9 @@ if __name__ == '__main__':
     
         
     args = parser.parse_args()
-    
+    print(args)
     # check that parameters make sense.
-    model_options= ['ridge', 'lasso', 'elastic_net', 'ridge_nofeatselect', 'linear_regression', 'svm', 'ensemble_reg']
+    model_options= ['none', 'ridge', 'lasso', 'elastic_net', 'ridge_nofeatselect', 'linear_regression', 'svm', 'ensemble_reg']
     if not set([args.model_specified]).issubset(set(model_options)):
         raise RuntimeError('Warning! Unknown model option specified {} \n Only the following options are allowed {} \n'.format(args.model_specified, model_options))
 
@@ -187,7 +187,9 @@ if __name__ == '__main__':
     if (not args.lesionload_types == 'none') and (not args.atlases == 'none') and (not args.chaco_types == 'none'):
         # if you specified running a lesion load model AND a chaco model but you only specified the parameters for both (not 'none' options)
         args.lesionload_types.append('none')
-        print(args.lesionload_types)
+    
+    if ('chacovol' in args.chaco_types ) and (args.model_specified == 'none'):
+        raise RuntimeError('Error: please specify a machine learning model to use for ChaCo predictions.')
         
         
         

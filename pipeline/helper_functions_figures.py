@@ -49,7 +49,7 @@ def create_performance_figures(r2_scores, correlations,label, results_path, anal
     
     ylabel = 'Pearson correlation'
     path_file = os.path.join(results_path,analysis_id, analysis_id + '_boxplots_correlations.png')
-
+    
     box_and_whisker(np.transpose(correlations), title, ylabel, xticklabels, path_file,n_sets,range_y)
 
 def create_performance_figures_loo(r2_scores, correlations,label, results_path, output_path, filename):
@@ -529,7 +529,7 @@ def generate_wb_figures_setup(hcp_dir, scenesdir):
         scenefile = scenefile.replace("S1200.L.inflated_MSMAll.32k_fs_LR.surf.gii",os.path.join(hcp_dir, "S1200.L.inflated_MSMAll.32k_fs_LR.surf.gii"))
         scenefile = scenefile.replace("S1200.R.inflated_MSMAll.32k_fs_LR.surf.gii",os.path.join(hcp_dir, "S1200.R.inflated_MSMAll.32k_fs_LR.surf.gii"))
         scenefile = scenefile.replace('shen268_normed_motor_scores_chacovol_chronic_ridge_crossval1_meanfeatureweight_allperms_50_surfacefileL.shape.gii', 'surfL.gii')
-        
+    
         scenefile = scenefile.replace('shen268_normed_motor_scores_chacovol_chronic_ridge_crossval1_meanfeatureweight_allperms_50_surfacefileR.shape.gii', 'surfR.gii')
     
     # Write the file out again
@@ -637,10 +637,9 @@ def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subs
 def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval):
     title=''
     rootname_truepred = os.path.join(results_path, output_path, '{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, model_tested,crossval))
-    meanfeatureweights = np.loadtxt(os.path.join(rootname_truepred, '_meanfeatureweight_allperms.txt'))
-    meanbetas= np.loadtxt(os.path.join(rootname_truepred, '_meanbetas_allperms.txt'))
-    stdbetas = np.loadtxt(os.path.join(rootname_truepred, '_stdbetas_allpearms.txt'))
-    betas = np.loadtxt(os.path.join(rootname_truepred, '_betas.txt'))
+    meanbetas= np.loadtxt(os.path.join(rootname_truepred+'_meanbetas_allperms.txt'))
+    stdbetas = np.loadtxt(os.path.join(rootname_truepred+ '_stdbetas_allpearms.txt'))
+    betas = np.loadtxt(os.path.join(rootname_truepred+ '_betas.txt'))
     
     # Change the colour of the boxes to match the SMATT figure.
     m1 = (89/255, 196/255, 89/255) # green
@@ -649,7 +648,6 @@ def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_va
     pmv = (236/255, 152/255, 81/255) # orange
     sma = (76/255, 73/255, 231/255) # blue
     psma = (221/255, 52/255, 50/255) # red
-    
     if atlas == 'lesionload_all':
         xticklabels = ['M1','PMd','PMv','S1','SMA','preSMA']
         colors = (m1, pmd, pmv, s1, sma, psma)
@@ -663,6 +661,7 @@ def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_va
     data2 = betas
     
     path_file = os.path.join(results_path, analysis_id, analysis_id + '_' + atlas + '_' + subset + '_crossval' + crossval +  '_smatt_betas.png')
+    
     ylabel = 'Beta coefficients'
     fig, ax = plt.subplots(ncols=1, figsize =(7, 7))
     
@@ -672,9 +671,8 @@ def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_va
     # Label y-axis
     ax.set_ylabel(ylabel,fontname="Arial", fontsize=16)
     # Label x-axis ticks
-    
     ax.set_xticklabels(xticklabels,rotation=90,fontname="Arial", fontsize=18)
-    
+
     # Change y-tick fontsize
     ax.tick_params(axis='y', labelsize=16)
     #ax.set_yticklabels(yticklabs,rotation=90,fontname="Arial", fontsize=18)
@@ -682,10 +680,13 @@ def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_va
     # Hide x-axis major ticks
     ax.tick_params(axis='x', which='major', length=0)
     # Show x-axis minor ticks
+
     xticks = [0.5] + [x + 0.5 for x in ax.get_xticks()]
     ax.set_xticks(xticks, minor=True)
+
     # Clean up the appearance
     ax.tick_params(axis='x', which='minor', length=3, width=1)
+    
 
     # Change the colour of the boxes to Seaborn's 'pastel' palette
     for patch, color in zip(bp['boxes'], colors):

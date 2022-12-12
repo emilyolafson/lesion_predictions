@@ -24,7 +24,7 @@ reload(helper_functions_figures)
 # options for visualizing the results using the Connectome Workbench software and generating box plots of the results.
 
 
-def run_models(site_colname, csv_path, y_var,nemo_path, motor_colname,subid_colname,chronicity_colname,subsets,nemo_settings, model_specified, verbose, covariates, lesionload_types, nperms, save_models, ensembles,hcp_dir, atlases, chaco_types, crossval_types, null, results_path, output_path, figs_only, analysis_id, workbench_vis,scenesdir, wbpath,boxplots, override_rerunmodels, ensemble_atlas):
+def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colname,chronicity_colname,subsets,nemo_settings, model_specified, verbose, covariates, lesionload_types, nperms, save_models, ensembles,hcp_dir, atlases, chaco_types, crossval_types, null, results_path, output_path, figs_only, analysis_id, workbench_vis,scenesdir, wbpath,boxplots, override_rerunmodels, ensemble_atlas):
 
     labels=[]
     r2means=np.empty(shape=(0,nperms))
@@ -42,7 +42,7 @@ def run_models(site_colname, csv_path, y_var,nemo_path, motor_colname,subid_coln
                             for crossval in crossval_types:
 
                                 #format the data for the current parameters
-                                [X, Y, C, lesion_load, site] = create_data_set(csv_path,site_colname,nemo_path,motor_colname,subid_colname,chronicity_colname,atlas,covariates, verbose, y_var, chaco_type, subset,1,nemo_settings=nemo_settings,ll= lesionload_type)
+                                [X, Y, C, lesion_load, site] = create_data_set(csv_path,site_colname,nemo_path,yvar_colname,subid_colname,chronicity_colname,atlas,covariates, verbose, y_var, chaco_type, subset,1,nemo_settings=nemo_settings,ll= lesionload_type)
                                 
                                 if verbose:
                                     announce_runningmodel(lesionload_type, ensemble, atlas, chaco_type, crossval, override_rerunmodels)
@@ -111,7 +111,7 @@ def run_models(site_colname, csv_path, y_var,nemo_path, motor_colname,subid_coln
 
                         atlas, model_tested, chaco_type = set_vars_for_ll(lesionload_type)
 
-                        [X, Y, C, lesion_load, site] = create_data_set(csv_path,site_colname,nemo_path,motor_colname, subid_colname,chronicity_colname,ensemble_atlas,covariates, verbose, y_var, chaco_type,subset,1,nemo_settings,ll= lesionload_type)
+                        [X, Y, C, lesion_load, site] = create_data_set(csv_path,site_colname,nemo_path,yvar_colname, subid_colname,chronicity_colname,ensemble_atlas,covariates, verbose, y_var, chaco_type,subset,1,nemo_settings,ll= lesionload_type)
                         print(verbose)
                         if verbose:
                             announce_runningmodel(lesionload_type, ensemble, atlas, chaco_type, crossval, override_rerunmodels)
@@ -158,7 +158,7 @@ def run_models(site_colname, csv_path, y_var,nemo_path, motor_colname,subid_coln
                         elif ensemble=='chaco_ll_demog':
                             label =atlaslabel + ' ChaCo ' + '('+ensemble_atlas+')' + ' + demog.'
                         else:
-                            label = atlas
+                            label = atlaslabel
                         if len(crossval_types)>1:
                             label = label + ' ' + crossval
                         if len(subsets)>1:

@@ -1361,7 +1361,6 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
         np.savetxt(rootname +'_meanbetas_allperms_99.txt', mean_betas_allperms_99)
         
     if atlas =='lesionload_all' or atlas =='lesionload_all_2h':
-        np.savetxt(rootname +'_meanfeatureweight_allperms.txt', np.median(varimpts_allperms,axis=0))   
         np.savetxt(rootname +'_meanbetas_allperms.txt', np.median(mean_betas_allperms,axis=0))   
         np.savetxt(rootname +'_stdbetas_allpearms.txt', np.median(std_betas_allperms,axis=0))   
         np.savetxt(rootname +'_betas.txt', betas_allperms)
