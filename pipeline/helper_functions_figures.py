@@ -24,7 +24,7 @@ def create_performance_figures(r2_scores, correlations,label, results_path, anal
     xticklabels = label
 
     n_sets = subsets
-    if analysis_id=='analysis_1':
+    if analysis_id=='analysis_1' or analysis_id == 'analysis_1_fm':
         range_y = 'analysis1'
     if analysis_id=='analysis_2':
         range_y = 'analysis2'

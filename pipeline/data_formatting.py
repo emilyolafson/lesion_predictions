@@ -27,9 +27,15 @@ def access_elements(nums, list_index):
 def find_missing_scans(ids, atlas, chaco_type,nemo_path, nemo_settings):
     # Get full filenames for NeMo outputs:
     # NeMo suffix:
+
+    if chaco_type == 'NA':
+        chaco_type = 'chacovol'
+    if not (atlas == 'fs86subj' or atlas == 'shen268'): # if atlas == none (this may occur when we're doing just LL, but we still want to load chaco data.)
+        atlas = 'fs86subj'
+    
     nemo_suffix = '_{}_nemo_output_{}_{}_{}_mean.pkl'.format(nemo_settings[0], nemo_settings[1],chaco_type,atlas)
     files = glob.glob(os.path.join(nemo_path, '*_{}_nemo_output_{}_{}_{}_mean.pkl'.format(nemo_settings[0], nemo_settings[1], chaco_type, atlas)))
-    
+
     # check if there is any content between the ID and the lesionmask filename after removing the NeMo bits.
     files_stripped = [file.replace(nemo_path, '').replace(nemo_suffix, '') for file in files]
 
@@ -50,6 +56,8 @@ def find_missing_scans(ids, atlas, chaco_type,nemo_path, nemo_settings):
                             c=c+1   
                         else:
                             if not filebits == current_diff:
+                                print(filebits)
+
                                 print('Multiple different image file names.')
                                 
                 else:
@@ -72,7 +80,9 @@ def load_chaco_data(ids,chaco_type):
     # This function takes in a list of IDs and a string containing the type of chaco data (either 'chacovol' or 'chacoconn')
     # and returns a matrix of the chaco data. For 'chacoconn' data, the matrix is the upper triangular portion of the adjacency
     # matrix with the diagonal set to 0. For 'chacovol' data, the matrix is the volume data for each subject.
-    
+    if chaco_type == 'NA':
+        chaco_type = 'chacovol'
+        
     for i in range(0,len(ids)):
         
         with open(ids[i], 'r+b') as e:
@@ -141,28 +151,41 @@ def get_chronicity_subset(df, subset, subid_colname, chronicity_colname):
     # Finally, the function returns the list of subject IDs in the filtered DataFrame, which are stored in the 'BIDS_ID' column.
 
     if subset == 'chronic':
-            df_chronic = df[df[chronicity_colname]==180]
-            df_chronic = df_chronic.reset_index(drop=True)
-            df_final = df_chronic
-            ids = df_chronic[subid_colname]  
+        print('\nSelecting chronic subjects only.\n')
+
+        df_chronic = df[df[chronicity_colname]==180]
+        df_chronic = df_chronic.reset_index(drop=True)
+        df_final = df_chronic
+        ids = df_chronic[subid_colname]  
     elif subset == 'acute':
+        print('\nSelecting acute subjects only. \n')
         df_acute = df[df[chronicity_colname]==90]
         df_acute = df_acute.reset_index(drop=True)
         df_final = df_acute
-        ids = df_acute[subid_colname]    
-    else: # else take all the data
+        ids = df_acute[subid_colname]
+        
+    elif subset == 'acutechronic': # if acute+chronic, load chronic data here. 
+        print('\nSelecting chronic subjects only.\n')
+
+        df_chronic = df[df[chronicity_colname]==180]
+        df_chronic = df_chronic.reset_index(drop=True)
+        df_final = df_chronic
+        ids = df_chronic[subid_colname] 
+    else:
+        print('\nSelecting all subjects\n')
         ids = df[subid_colname]
         df_final = df
-
 
     return df_final, ids
 
 def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_colname = None, subid_colname=None,chronicity_colname=None,atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None, nemo_settings=None, ll=None):
-
+    print('\n\nLoading .csv...')
     df = load_csv(csv_path)
-    
+    print('\nSize of dataset before removing subjects without outcome scores: {} subjects'.format(df.shape[0]))
+
     df = remove_missing_yvar(df, yvar_colname)
-    
+    print('Size of dataset after removing subjects without outcome scores: {} subjects\n'.format(df.shape[0]))
+
     all_cov_labels = df.columns.values # Age, sex, days post stroke, chronicity, lesioned hem 
     
     if covariates:
@@ -185,10 +208,11 @@ def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_coln
         if not set([ll]).issubset(set(all_ll_options)):
             raise RuntimeError('Warning! Unknown lesion load option specified: {} \n'
                                'Only the following options are allowed: {} \n'.format(ll, all_ll_options))
-            
-    if remove_demog:
-        df = remove_missing_demographics(df,covariates_list)   
     
+    print('\nSize of dataset before removing subjects without non-lesion covariates {}: {} subjects'.format(covariates_list,df.shape[0]))
+    df = remove_missing_demographics(df,covariates_list)   
+    print('Size of dataset after removing subjects without non-lesion covariates: {} subjects'.format(df.shape[0]))
+
     # this was for me specifically, just make sure your sex variable is a logical.
     if 'SEX' in covariates_list:
         sex = df['SEX']
@@ -197,20 +221,18 @@ def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_coln
         
 
     ids=df[subid_colname]
+    print('\nSize of dataset before subsetting for chronic/acute: {} subjects'.format(df.shape[0]))
     df_final, ids = get_chronicity_subset(df, subset, subid_colname, chronicity_colname)
-   
-    # find subjects who have motor scores but are missing scans.
-    
-    if not chaco_type=='NA':
-        ids_fullpaths_nonemissing, missinglist = find_missing_scans(ids, atlas, chaco_type,nemo_path, nemo_settings)
-        df_final = remove_missing_scans(df_final,missinglist,subid_colname)  
+    print('Size of dataset after subsetting for chronic/acute: {} subjects'.format(df_final.shape[0]))
 
-    if not chaco_type == 'NA':
-        X = load_chaco_data(ids_fullpaths_nonemissing, chaco_type)
-        X = np.array(X)
-    else:
-        X = []
-        
+    # find subjects who have motor scores but are missing scans.
+    ids_fullpaths_nonemissing, missinglist = find_missing_scans(ids, atlas, chaco_type,nemo_path, nemo_settings)
+    df_final = remove_missing_scans(df_final,missinglist,subid_colname)  
+    
+    X = load_chaco_data(ids_fullpaths_nonemissing, chaco_type)
+    X = np.array(X)
+    print(X.shape)
+
     C = df_final.loc[:,covariates_list].values
     
     if site_colname:

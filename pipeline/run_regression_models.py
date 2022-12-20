@@ -29,9 +29,10 @@ def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colna
     labels=[]
     r2means=np.empty(shape=(0,nperms))
     corrs=np.empty(shape=(0,nperms))
-
     for subset in subsets:
+        print('running subset. {}'.format(subset))
         for ensemble in ensembles:
+            print(ensembles)
             for lesionload_type in lesionload_types:
                 if lesionload_type == 'none' and (('chacovol' in chaco_types) or ('chacoconn' in chaco_types)):
                     
@@ -43,7 +44,14 @@ def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colna
 
                                 #format the data for the current parameters
                                 [X, Y, C, lesion_load, site] = create_data_set(csv_path,site_colname,nemo_path,yvar_colname,subid_colname,chronicity_colname,atlas,covariates, verbose, y_var, chaco_type, subset,1,nemo_settings=nemo_settings,ll= lesionload_type)
-                                
+                                if subset == 'acutechronic':
+                                    # if acutechronic, X (from above) is chronic data.
+                                    # load the acute data here:
+                                    [acuteX, acuteY,acuteC, acute_lesion_load, acute_site] = create_data_set(csv_path,site_colname,nemo_path,yvar_colname, subid_colname,chronicity_colname,atlas,covariates, verbose, y_var, chaco_type,'acute',1,nemo_settings,ll= lesionload_type)
+                                    acute_data = {'acute_X':acuteX,'acute_Y':acuteY, 'acute_LL':acute_lesion_load, 'acute_C':acuteC}
+                                else:
+                                    acute_data = []
+                                                                    
                                 if verbose:
                                     announce_runningmodel(lesionload_type, ensemble, atlas, chaco_type, crossval, override_rerunmodels)
                                 
@@ -52,7 +60,7 @@ def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colna
                                     # results already exist. If they do, it skips running the model and uses the existing results. If the 
                                     # results don't exist or the user wants to override previous results, the code runs the model and saves the results.
 
-                                    files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset,ensemble_atlas)
+                                    files_exist, folder = check_if_files_exist(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset,ensemble_atlas)
                                     if files_exist: # we dont want to override but dont recalculate what's already been done
                                         output_fullpath = folder
                                         output_path = output_fullpath.replace(results_path, '').replace('/', '')
@@ -60,10 +68,10 @@ def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colna
                                         print('\n')
                                     else:
                                         if not figs_only: # if figs_only then we just want the output path where the files are located. if not, then actually run the model.
-                                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas)
+                                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas,acute_data)
                                 else: # we do want to override previous results
                                     print('Overriding previous model runs!')
-                                    set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas)
+                                    set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas,acute_data)
 
                                 n_outer_folds=5
                                 
@@ -104,30 +112,37 @@ def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colna
                                 labels.append(label)
 
 
-                else: #chaco_ll and chaco_ll_demog run here.
+                elif not lesionload_type == 'none': #chaco_ll and chaco_ll_demog run here.
                     
                     for crossval in crossval_types:
-                        print('crossval = {}'.format(crossval))
-
+ 
                         atlas, model_tested, chaco_type = set_vars_for_ll(lesionload_type)
 
                         [X, Y, C, lesion_load, site] = create_data_set(csv_path,site_colname,nemo_path,yvar_colname, subid_colname,chronicity_colname,ensemble_atlas,covariates, verbose, y_var, chaco_type,subset,1,nemo_settings,ll= lesionload_type)
-                        print(verbose)
+                        if subset == 'acutechronic':
+                            # if acutechronic, X (from above) is chronic data.
+                            # load the acute data here:
+                            [acuteX, acuteY, acuteC, acute_lesion_load, acute_site] = create_data_set(csv_path,site_colname,nemo_path,yvar_colname, subid_colname,chronicity_colname,ensemble_atlas,covariates, verbose, y_var, chaco_type,'acute',1,nemo_settings,ll= lesionload_type)
+                            acute_data = {'acute_X':acuteX,'acute_Y':acuteY, 'acute_LL':acute_lesion_load, 'acute_C':acuteC}
+
+                        else:
+                            acute_data = []
+                            
                         if verbose:
                             announce_runningmodel(lesionload_type, ensemble, atlas, chaco_type, crossval, override_rerunmodels)
-                        
                         if not override_rerunmodels: # if we don't want to override model results
-                            files_exist, folder = check_if_files_exist_already(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset,ensemble_atlas)
+                            files_exist, folder = check_if_files_exist(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset,ensemble_atlas)
                             
                             if files_exist: # we dont want to override but dont recalculate what's already been done
                                 output_fullpath = folder
+                                print('FLES EXIST')
                                 output_path = output_fullpath.replace(results_path, '').replace('/', '')
                             else:
                                 if not figs_only: # if figs_only then we just want the output path where the files are located. if not, then actually run the model.
-                                    set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas)
+                                    set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas,acute_data)
                         else: # we do want to override previous results
-                            print('Overriding previous model runs!')
-                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas)
+
+                            set_up_and_run_model(crossval, model_tested,lesion_load, lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null,ensemble, output_path,ensemble_atlas,acute_data)
 
                         n_outer_folds =5
                                                 
