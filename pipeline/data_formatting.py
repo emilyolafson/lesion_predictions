@@ -32,7 +32,8 @@ def find_missing_scans(ids, atlas, chaco_type,nemo_path, nemo_settings):
         chaco_type = 'chacovol'
     if not (atlas == 'fs86subj' or atlas == 'shen268'): # if atlas == none (this may occur when we're doing just LL, but we still want to load chaco data.)
         atlas = 'fs86subj'
-    
+    print(atlas)
+    print(chaco_type)
     nemo_suffix = '_{}_nemo_output_{}_{}_{}_mean.pkl'.format(nemo_settings[0], nemo_settings[1],chaco_type,atlas)
     files = glob.glob(os.path.join(nemo_path, '*_{}_nemo_output_{}_{}_{}_mean.pkl'.format(nemo_settings[0], nemo_settings[1], chaco_type, atlas)))
 
@@ -178,8 +179,21 @@ def get_chronicity_subset(df, subset, subid_colname, chronicity_colname):
 
     return df_final, ids
 
+def load_lesion_vol(df_final):
+    lesionvolpath = '/home/ubuntu/enigma/lesionvol'
+    lesionvol=np.zeros(shape=(df_final.shape[0],1))
+    i=0
+    for subject in df_final['BIDS_ID']:
+        lesionvol[i]=(np.loadtxt(os.path.join(lesionvolpath, subject + '.txt'))[0])
+        i=i+1
+    df_final['lesionvol']=lesionvol
+    
+    return lesionvol
+        
+
 def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_colname = None, subid_colname=None,chronicity_colname=None,atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None, nemo_settings=None, ll=None):
     print('\n\nLoading .csv...')
+    print(csv_path)
     df = load_csv(csv_path)
     print('\nSize of dataset before removing subjects without outcome scores: {} subjects'.format(df.shape[0]))
 
@@ -232,9 +246,11 @@ def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_coln
     X = load_chaco_data(ids_fullpaths_nonemissing, chaco_type)
     X = np.array(X)
     print(X.shape)
-
-    C = df_final.loc[:,covariates_list].values
     
+    lesionvol = load_lesion_vol(df_final)
+    
+    C = df_final.loc[:,covariates_list].values
+    print(df_final.columns)
     if site_colname:
         site = df_final[site_colname]
         #make an instance of Label Encoder
@@ -249,7 +265,7 @@ def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_coln
     
     llvars = ['M1_CST', 'PMd_CST', 'PMv_CST','S1_CST','SMA_CST','preSMA_CST']
     ll_2h_vars =['L_M1_CST', 'L_PMd_CST', 'L_PMv_CST','L_S1_CST','L_SMA_CST','L_preSMA_CST','R_M1_CST', 'R_PMd_CST', 'R_PMv_CST','R_S1_CST','R_SMA_CST','R_preSMA_CST']
-    slnm_vars = ['sLNM_LL']
+    slnm_vars = ['PC1', 'PC2_1', 'PC2_2','PC3_1','PC3_2']
     if ll=='all':
         lesion_load = df_final.loc[:,llvars]
     elif ll=='M1':
@@ -257,10 +273,10 @@ def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_coln
     elif ll=='all_2h':
         lesion_load=df_final.loc[:,ll_2h_vars]
     elif ll=='slnm':
+        print('lesion load is sLNM')
         lesion_load = df_final.loc[:,slnm_vars]
     elif ll=='none':
         lesion_load=[]
 
-    return X, y, C, lesion_load, site
-
+    return X, y, C, lesion_load, site, df_final['BIDS_ID'], lesionvol
 

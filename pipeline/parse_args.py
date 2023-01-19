@@ -55,9 +55,9 @@ if __name__ == '__main__':
   parser.add_argument("--subsets", default=['chronic'], type=lambda s: [item.replace(" ", "") for item in s.split(',')],
     help="Subset of data to use for analysis, options: 'acute', 'chronic', 'none' default=['chronic']")
 
-  # model_specified: list, default = ['ridge'], machine learning models to run
-  parser.add_argument("--model_specified", default='none',
-    help="Machine learning model used for ChaCo score-based prediction. Note that models for lesion load predictions are hard-coded. If running only lesion-load based predictions, specify 'none', Default='none'")
+  # models_tested: list, default = ['ridge'], machine learning models to run
+  parser.add_argument("--models_tested", default=['none'],type=lambda s: [item.replace(" ", "") for item in s.split(',')],
+    help="Machine learning model used for ChaCo score-based prediction. Note that models for lesion load predictions are hard-coded. If running only lesion-load based predictions, specify ['none'], Default='none'")
 
   # verbose: bool, default = True, whether to print out verbose output
   parser.add_argument("--verbose", default=True,type=bool,
@@ -145,9 +145,9 @@ if __name__ == '__main__':
       
   args = parser.parse_args()
   # check that parameters make sense.
-  model_options= ['none', 'ridge', 'lasso', 'elastic_net', 'ridge_nofeatselect', 'linear_regression', 'svm', 'ensemble_reg']
-  if not set([args.model_specified]).issubset(set(model_options)):
-      raise RuntimeError('Warning! Unknown model option specified {} \n Only the following options are allowed {} \n'.format(args.model_specified, model_options))
+  model_options= ['none', 'ridge', 'lasso', 'elastic_net', 'ridge_nofeatselect', 'linear_regression', 'svm', 'svr', 'ensemble_reg']
+  if not set(args.models_tested).issubset(set(model_options)):
+      raise RuntimeError('Warning! Unknown model option specified {} \n Only the following options are allowed {} \n'.format(args.models_tested, model_options))
 
   lesionload_options = ['M1', 'none', 'all', 'all_2h', 'slnm']
   if not set(args.lesionload_types).issubset(set(lesionload_options)):
@@ -182,16 +182,20 @@ if __name__ == '__main__':
   if not set(args.nemo_settings).issubset(set(nemo_settings_options)):
       raise RuntimeError('Warning! Unknown cross validation type specified: {}\n Only the following options are allowed: {} \n'.format(args.nemo_settings, nemo_settings_options))    
 
-  if (not args.lesionload_types == 'none') and (not args.atlases == 'none') and (not args.chaco_types == 'none'):
+  if (not args.lesionload_types == ['none']) and (not args.atlases == 'none') and (not args.chaco_types == 'none'):
       # if you specified running a lesion load model AND a chaco model but you only specified the parameters for both (not 'none' options)
       args.lesionload_types.append('none')
   
-  if ('chacovol' in args.chaco_types ) and (args.model_specified == 'none'):
+  if ('chacovol' in args.chaco_types ) and (not args.models_tested):
       raise RuntimeError('Error: please specify a machine learning model to use for ChaCo predictions.')
   
   if isinstance(args.override_rerunmodels, str):
     # anything else I'm assuming you meant false.
     args.override_rerunmodels = (args.override_rerunmodels =='True') or (args.override_rerunmodels == 'true') or (args.override_rerunmodels == 'T') or (args.override_rerunmodels == '1')
+  
+  if isinstance(args.figs_only, str):
+    # anything else I'm assuming you meant false.
+    args.figs_only = (args.figs_only =='True') or (args.figs_only == 'true') or (args.figs_only == 'T') or (args.figs_only == '1')
   
   if ('chacovol' in args.chaco_types) and ('none' in args.atlases):
     raise RuntimeError('No atlas specified for ChaCo model. Either specify at atlas, or do not specify a ChaCo model (chaco_types = "none")')
