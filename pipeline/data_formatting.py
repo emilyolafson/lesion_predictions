@@ -17,8 +17,6 @@ def prepare_data(X):
     X=X[:,~zeros]    
     return X
 
-  
-
 
 def access_elements(nums, list_index):
     result = [nums[i] for i in list_index]
@@ -191,7 +189,7 @@ def load_lesion_vol(df_final):
     return lesionvol
         
 
-def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_colname = None, subid_colname=None,chronicity_colname=None,atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None, nemo_settings=None, ll=None):
+def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_colname = None, subid_colname=None,chronicity_colname=None,atlas=None, covariates=None, verbose=False, y_var=None,chaco_type=None, subset=None, remove_demog =None, nemo_settings=None, ll=None,return_motor=False):
     print('\n\nLoading .csv...')
     print(csv_path)
     df = load_csv(csv_path)
@@ -248,11 +246,12 @@ def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_coln
     print(X.shape)
     
     lesionvol = load_lesion_vol(df_final)
-    
+    lesioned_hem= df_final['LESIONED_HEMISPHERE']
     C = df_final.loc[:,covariates_list].values
     print(df_final.columns)
     if site_colname:
         site = df_final[site_colname]
+        site_final = np.unique(site)
         #make an instance of Label Encoder
         label_encoder = preprocessing.LabelEncoder()
         site = label_encoder.fit_transform(site)       
@@ -277,6 +276,16 @@ def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_coln
         lesion_load = df_final.loc[:,slnm_vars]
     elif ll=='none':
         lesion_load=[]
+        
+    if return_motor:
+        motor_ids = ['NORMED_MOTOR','FUGL_MEYER_UE_NORM','ARAT_NORM','WMFT_FAS_NORM','NIHSS_NORM','MOTRICITY_ARM_A','GRIP_NORM_A_TO_NA','BARTHEL']
+        motor_vars = df_final.loc[:,motor_ids]
+    else:
+        motor_vars= []
 
-    return X, y, C, lesion_load, site, df_final['BIDS_ID'], lesionvol
+    if subset=='knockoff':
+        X = pd.read_csv('/home/ubuntu/enigma/motor_predictions/knockoff.csv', header=None)
+        print(X.shape)
+        
+    return X, y, C, lesion_load, site, site_final, lesioned_hem,motor_vars
 

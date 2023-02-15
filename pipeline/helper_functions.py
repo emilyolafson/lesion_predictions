@@ -414,153 +414,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
             beta_coeffs = shen268_counts
         
 
-    # then transform the haufe activations
-    activation=np.matmul(cov_x,weight)*(1/cov_y)
-
-    if chaco_type =='chacovol':
-        if atlas == 'fs86subj':
-            
-            idx=np.ones(shape=(86,1), dtype='bool')
-            idx[cols]=False # set SC weights that are features to be 1
-            idx=idx.flatten()
-            zeroidx=np.arange(0, 86, dtype='int')
-            zeroidx=zeroidx[idx]
-            
-            # fill spots with 0's (up to 3192)
-            k=0
-            activation_full = activation
-            while k < zeroidx.shape[0]:
-                activation_full=np.insert(activation_full, zeroidx[k],0)
-                k=k+1
-            
-            #logprint("Full 3192: " + str(np.sum(activation_full>0)))
-            # fill spots with 0's (up to 3655)
-            zeros=X==0
-            zeros=np.sum(zeros,0) # number of zeros across subjects
-            zeros=zeros==X.shape[0] # find columns with zeros for all 101 subjects
-            X=X[:,~zeros]
-            
-            zeroidx=np.arange(0, 86)
-            zeroidx=zeroidx[zeros]
-            
-            # fill spots with 0's
-            k=0
-            a = activation_full
-            while k < zeroidx.shape[0]:
-                a=np.insert(a, zeroidx[k],0)
-                k=k+1
-            
-            activation = a
-        elif atlas == 'shen268':
-            
-            idx=np.ones(shape=(268,1), dtype='bool')
-            idx[cols]=False # set SC weights that are features to be 1
-            idx=idx.flatten()
-            zeroidx=np.arange(0, 268, dtype='int')
-            zeroidx=zeroidx[idx]
-            
-            # fill spots with 0's (up to 3192)
-            k=0
-            activation_full = activation
-            while k < zeroidx.shape[0]:
-                activation_full=np.insert(activation_full, zeroidx[k],0)
-                k=k+1
-            
-            #logprint("Full 3192: " + str(np.sum(activation_full>0)))
-            # fill spots with 0's (up to 3655)
-            zeros=X==0
-            zeros=np.sum(zeros,0) # number of zeros across subjects
-            zeros=zeros==X.shape[0] # find columns with zeros for all 101 subjects
-            X=X[:,~zeros]
-            
-            zeroidx=np.arange(0, 268)
-            zeroidx=zeroidx[zeros]
-            
-            # fill spots with 0's
-            k=0
-            a = activation_full
-            while k < zeroidx.shape[0]:
-                a=np.insert(a, zeroidx[k],0)
-                k=k+1
-            
-            activation = a
-    elif chaco_type=='chacoconn':
-        if atlas == 'fs86subj':
-                
-            idx=np.ones(shape=(3192,1), dtype='bool')
-            idx[cols]=False # set SC weights that are features to be 1
-            idx=idx.flatten()
-            zeroidx=np.arange(0, 3192, dtype='int')
-            zeroidx=zeroidx[idx]
-            
-            # fill spots with 0's (up to 3192)
-            k=0
-            activation_full = activation
-            while k < zeroidx.shape[0]:
-                activation_full=np.insert(activation_full, zeroidx[k],0)
-                k=k+1
-            
-            #logprint("Full 3192: " + str(np.sum(activation_full>0)))
-            # fill spots with 0's (up to 3655)
-            zeros=X==0
-            zeros=np.sum(zeros,0) # number of zeros across subjects
-            zeros=zeros==X.shape[0] # find columns with zeros for all 101 subjects
-            X=X[:,~zeros]
-            
-            zeroidx=np.arange(0, 3655)
-            logprint(zeroidx.shape)
-            logprint(zeros.shape)
-            zeroidx=zeroidx[zeros]
-            
-            # fill spots with 0's
-            k=0
-            a = activation_full
-            while k < zeroidx.shape[0]:
-                a=np.insert(a, zeroidx[k],0)
-                k=k+1
-            
-            activation = a
-            fs86_counts = np.zeros((86, 86))
-            inds = np.triu_indices(86, k=1)
-            fs86_counts[inds] = activation
-            activation = fs86_counts
-        elif atlas == 'shen268':
-            idx=np.ones(shape=(25056,1), dtype='bool')
-            idx[cols]=False # set SC weights that are features to be 1
-            idx=idx.flatten()
-            zeroidx=np.arange(0, 25056, dtype='int')
-            zeroidx=zeroidx[idx]
-            
-            # fill spots with 0's (up to 3192)
-            k=0
-            activation_full = activation
-            while k < zeroidx.shape[0]:
-                activation_full=np.insert(activation_full, zeroidx[k],0)
-                k=k+1
-            
-            #logprint("Full 3192: " + str(np.sum(activation_full>0)))
-            # fill spots with 0's (up to 3655)
-            zeros=X==0
-            zeros=np.sum(zeros,0) # number of zeros across subjects
-            zeros=zeros==X.shape[0] # find columns with zeros for all 101 subjects
-            X=X[:,~zeros]
-            
-            zeroidx=np.arange(0, 35778)
-            zeroidx=zeroidx[zeros]
-            
-            # fill spots with 0's
-            k=0
-            a = activation_full
-            while k < zeroidx.shape[0]:
-                a=np.insert(a, zeroidx[k],0)
-                k=k+1
-            
-            activation = a
-            shen268_counts = np.zeros((268, 268))
-            inds = np.triu_indices(268, k=1)
-            shen268_counts[inds] = activation
-            activation = shen268_counts
-        
+        activation=[]
     return activation, beta_coeffs
 
 def create_outer_cv(outer_cv_id):
@@ -619,7 +473,6 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, model_tested, atlas, y
         X=np.array(x)
     elif atlas == 'lesionload_all_2h' or atlas == 'lesionload_slnm':
         X=np.array(x)
-        
     else:
         X = prepare_data(x) 
         
@@ -663,7 +516,7 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, model_tested, atlas, y
             
             logprint("------ Outer Fold: {}/{} ------".format(cv_fold + 1, outer_cv_splits))
             
-            X_train, X_test = X[train_id], X[test_id]
+            X_train, X_test = X[train_id], X[test_id]  # for acutechronic, this is only chronic data.
             y_train, y_test = Y[train_id], Y[test_id]
 
             group_train, group_test = group[train_id], group[test_id]
@@ -679,7 +532,6 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, model_tested, atlas, y
             logprint('Size of train: {}'.format(X_train.shape[0]))
             
             logprint('Number of sites in test set: {}'.format(np.unique(group_test).shape[0]))
-            print('model tested')
             
             mdl, mdl_label = get_models('regression', model_tested) 
 
@@ -774,6 +626,94 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, model_tested, atlas, y
 
         np.save(os.path.join(results_path,output_path,filename+ "_variable_impts.npy"), variable_importance)
         np.save(os.path.join(results_path, output_path,filename+ "_test_group_sizes.npy"), size_testgroup)
+
+
+def run_regression_final(x, Y, group, inner_cv_id, outer_cv_id, model_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null, output_path, acute_data):
+    # Runs only 1 split of 5-fold cross validation, does not estimate performance, returns model with highest out-of-sample accuracy
+
+    X = prepare_data(x) 
+    
+    if acute_data:
+        acute_Y = acute_data['acute_Y']
+        acute_site = acute_data['acute_site']
+        
+        acute_X =acute_data['acute_X']
+        acute_X = prepare_data(acute_X) 
+
+    mdl, mdl_label = get_models('regression', model_tested) 
+
+    k_range = determine_featselect_range(X)
+    
+    
+    grid_params ={'ridge__alpha': np.logspace(-2, 2, 30, base=10,dtype=None),
+                    'featselect__k':k_range}
+    score = 'explained_variance'
+    
+    inner_cv = create_inner_cv(inner_cv_id,1)
+    current_best=0
+    for cv_fold, (train_id, test_id) in enumerate(inner_cv.split(X, Y, group)):
+        X_train, X_test = X[train_id], X[test_id]
+        y_train, y_test = Y[train_id], Y[test_id]
+
+        group_train, group_test = group[train_id], group[test_id]
+        X_train = np.concatenate((X_train, acute_X),axis=0)
+        y_train = np.concatenate((y_train, acute_Y),axis=0)
+        group_train = np.concatenate((group_train, acute_site), axis=0)
+        
+        best_alpha,best_k, maxexpl= do_grid_search(X_train, X_test, y_train, y_test, mdl, grid_params, score)
+        if maxexpl >= current_best:
+            best_a = best_alpha
+            best_kfeats = best_k
+            current_best=maxexpl
+    
+    print(best_kfeats)
+    print(best_a)
+    
+    model = SelectKBest(score_func=f_regression, k=best_kfeats)
+    X_subset = model.fit_transform(X_train, y_train) 
+    
+    
+    feats_selected = model.get_support()
+    mdl = Ridge(alpha = best_a, normalize=True, max_iter=1000000, random_state=0)
+    mdl.fit(X_subset, y_train)
+    
+    coeffs = mdl.coef_
+    counter=0
+    final_beta_coeff_vector=np.empty(shape=(268,1))
+    for i in range(0,268):
+        if feats_selected[i]==True:
+            final_beta_coeff_vector[i]=coeffs[counter]
+            counter = counter + 1
+        else:
+            final_beta_coeff_vector[i]=0
+    print(final_beta_coeff_vector)
+    np.savetxt('/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata.txt',final_beta_coeff_vector)
+    
+    #best_mdl = grid_search.best_estimator_
+    
+def do_grid_search(X_train, X_test, y_train, y_test, mdl, grid_params, score):
+    explained_var = np.empty(shape=(30,30))
+    
+    current_best= 0
+    for a, alpha in enumerate(grid_params['ridge__alpha']):
+        for b, k in enumerate(grid_params['featselect__k']):
+            model = SelectKBest(score_func=f_regression, k=k)
+            X_subset = model.fit_transform(X_train, y_train) 
+            X_test_subset = model.transform(X_test)
+            mdl = Ridge(alpha = alpha, normalize=True, max_iter=1000000, random_state=0)
+            y_pred = mdl.fit(X_subset, y_train).predict(X_test_subset)
+            expl=explained_variance_score(y_test, y_pred)
+            explained_var[a,b]=expl
+            
+            if expl >=current_best:
+                best_alpha = alpha
+                best_alpha_idx = a
+                best_k = k
+                best_k_idx = b
+                current_best = expl
+    return best_alpha, best_k, np.max(explained_var)
+
+
 
 def run_regression_ensemble(X1, C, Y, group, inner_cv_id, outer_cv_id, model_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null,output_path, acute_data):
     X2 = C
@@ -1192,7 +1132,7 @@ def set_vars_for_ll(lesionload_type):
     return atlas, model_tested, chaco_type
         
 
-def set_up_and_run_model(crossval, model_tested,lesionload,lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null, ensemble, output_path,ensemble_atlas,chaco_model_tested,acute_data):
+def set_up_and_run_model(crossval, model_tested,lesionload,lesionload_type, X, Y, C, site, atlas, y_var, chaco_type, subset, save_models, results_path, nperms, null, ensemble, output_path,ensemble_atlas,chaco_model_tested,acute_data,final_model):
     # This function sets up the parameters for a machine learning model.
     # The function sets up the cross-validation method to be used based on the crossval input. 
     # Finally, it runs a machine learning regression using the specified parameters.
@@ -1236,10 +1176,16 @@ def set_up_and_run_model(crossval, model_tested,lesionload,lesionload_type, X, Y
 
     if ensemble == 'none':
         if lesionload_type == 'none':
-            print(model_tested)
             kwargs = {'x':X, 'Y':Y, 'group':site, 'model_tested':model_tested, 'inner_cv_id':inner_cv_id, 'outer_cv_id':outer_cv_id, 'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
                 'save_models':save_models, 'results_path':results_path, 'crossval_type':crossval, 'nperms':nperms, 'null':null, 'output_path':output_path, 'acute_data':acute_data}
-            run_regression(**kwargs)
+            if final_model=='true':
+                print('afdkljasfd')
+                run_regression_final(**kwargs)
+            else:
+               
+                run_regression(**kwargs)
+            
+
 
         elif lesionload_type =='M1':
             atlas = 'lesionload_m1'
@@ -1381,6 +1327,7 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
     mdl_label = model_tested
 
     rootname = os.path.join(results_path, output_path,'{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval))
+    print(rootname)
     r2scores_allperms=np.zeros(shape=(nperms, n_outer_folds))
     correlation_allperms=np.zeros(shape=(nperms, n_outer_folds))
     
@@ -1407,13 +1354,14 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
     elif chaco_type=='chacovol':
         if atlas == 'fs86subj':
             varimpts_allperms = np.empty(shape=(0, 86))
-            betas_allperms = np.zeros(shape=(0,86))
+            betas_allperms =np.zeros(shape=(100,5,86))
+
 
         if atlas == 'shen268':
             varimpts_allperms = np.empty(shape=(0, 268))
-            betas_allperms = np.zeros(shape=(0,268))
+            betas_allperms = np.zeros(shape=(100,5,268))
+            betas_allperms2 = np.zeros(shape=(nperms,268))
 
-        
         
     correlation_allperms=np.zeros(shape=(nperms, n_outer_folds))
 
@@ -1452,7 +1400,6 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
             r2scores=np.load(rootname +'_perm'+ str(n) + '_scores.npy',allow_pickle=True)
             correlation = np.load(rootname +'_perm'+ str(n) +'_correlations.npy',allow_pickle=True)
             betas=np.load(rootname +'_perm'+ str(n) + '_beta_coeffs.npy',allow_pickle=True)
-
             if atlas == 'lesionload_all' or atlas=='lesionload_all_2h' or atlas =='lesionload_slnm':
                 # bc there is no feature selection, we can average the weights of the lesioad load CSTs together together.
                 
@@ -1463,8 +1410,7 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
             if atlas == 'fs86subj' or atlas == 'shen268':
                 # there is feature selection. so let's concatenate the outer loop features together and only look at features that are included in >50% of the outer folds
 
-                
-                betas_allperms=np.concatenate((betas_allperms,betas),axis=0)
+                betas_allperms[n,:,:]=betas
 
             mdl=np.load(rootname +'_perm'+ str(n) + '_model.npy',allow_pickle=True)
             
@@ -1487,22 +1433,38 @@ def save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subs
     # save the average feature weight from features included in 50%, 90%, or 99% of outer folds.
     if atlas == 'fs86subj' or atlas == 'shen268':
         
+        
+
         n_outer_folds_total = nperms*n_outer_folds # 500 for k=5 and nperm=100
         
         threshold_50 = n_outer_folds_total-n_outer_folds_total/2 # 50%
-        threshold_90 = n_outer_folds_total-n_outer_folds_total/10 # 90%
+        threshold_95 = n_outer_folds_total*0.95
         threshold_99 = n_outer_folds_total-n_outer_folds_total/100 # 99%
-        nonzero_outerfolds = np.count_nonzero(betas_allperms,axis=0)
-        mean_betas_allperms = np.median(betas_allperms,axis=0)
-        mean_betas_allperms_0 = mean_betas_allperms
-        mean_betas_allperms_50 = mean_betas_allperms*(nonzero_outerfolds > threshold_50)
-        mean_betas_allperms_90 = mean_betas_allperms*(nonzero_outerfolds > threshold_90)
-        mean_betas_allperms_99 = mean_betas_allperms*(nonzero_outerfolds > threshold_99)
-        np.savetxt(rootname +'_meanbetas_allperms_0.txt', mean_betas_allperms_0)
-        np.savetxt(rootname +'_meanbetas_allperms_50.txt', mean_betas_allperms_50)
-        np.savetxt(rootname +'_meanbetas_allperms_90.txt', mean_betas_allperms_90)
-        np.savetxt(rootname +'_meanbetas_allperms_99.txt', mean_betas_allperms_99)
+        threshold_100 = n_outer_folds_total
         
+        mean_outer_folds = np.mean(betas_allperms ,axis=1) # 100x268 vector (mean over 5 outer folds)
+        if atlas == 'shen268': 
+            nonzero_outerfolds = np.count_nonzero(np.reshape(betas_allperms, [500, 268]),axis=0)
+            np.save('/home/ubuntu/enigma/results/analysis_1/betas_allperms_shen.npy', betas_allperms)
+
+        elif atlas =='fs86subj':
+            nonzero_outerfolds = np.count_nonzero(np.reshape(betas_allperms, [500, 86]),axis=0)
+            np.save('/home/ubuntu/enigma/results/analysis_1/betas_allperms_fs.npy', betas_allperms)
+
+    
+        
+        mean_outer_folds = np.mean(betas_allperms ,axis=1) # 100x268 vector (mean over 5 outer folds)
+        median_allpermutations = np.median(mean_outer_folds ,axis=0) # 1 vector (median over 100 perms))
+        median_betas_allperms_0 = median_allpermutations
+        median_betas_allperms_50 = median_allpermutations*(nonzero_outerfolds > threshold_50)
+        median_betas_allperms_95 = median_allpermutations*(nonzero_outerfolds > threshold_95)
+        median_betas_allperms_99 = median_allpermutations*(nonzero_outerfolds > threshold_99)
+        np.savetxt(rootname +'_median_betas_allperms_0.txt', median_betas_allperms_0)
+        np.savetxt(rootname +'_median_betas_allperms_50.txt', median_betas_allperms_50)
+        np.savetxt(rootname +'_median_betas_allperms_95.txt', median_betas_allperms_95)
+        np.savetxt(rootname +'_median_betas_allperms_99.txt', median_betas_allperms_99)
+
+
     if atlas =='lesionload_all' or atlas =='lesionload_all_2h' or atlas == 'lesionload_slnm':
         np.savetxt(rootname +'_meanbetas_allperms.txt', np.median(mean_betas_allperms,axis=0))   
         np.savetxt(rootname +'_stdbetas_allpearms.txt', np.median(std_betas_allperms,axis=0))   

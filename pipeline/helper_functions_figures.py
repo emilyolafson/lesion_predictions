@@ -463,175 +463,262 @@ def box_and_whisker(data, title, ylabel, xticklabels, path,n_sets, range_y, acut
     plt.savefig(path,bbox_inches='tight')
 
 
-def generate_wb_files(atlas, scenesdir, hcp_dir, wbpath, results_path, output_path, analysis_id, y_var,chaco_type, subset, model_tested,crossval):
-
+def generate_wb_files(atlas, scenesdir, hcp_dir, wbpath, results_path, output_path, analysis_id, y_var,chaco_type, subset, model_tested,crossval,final_model,factor):
     atlas_dir = scenesdir 
     hcp_dir =hcp_dir
-    
-    textfiles_betas = ['meanbetas_allperms_0','meanbetas_allperms_50']
-
-    for file in textfiles_betas:
-        print('making subcortical + surface betas files')
-        
-        textfile = os.path.join(results_path, output_path, '{}_{}_{}_{}_{}_crossval{}_{}.txt'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-        
-        # load text file in fs86 parc (86,1) vector/shen268 parc (268,1)
+    if final_model=='true':
+        textfile = '/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata.txt'
         scalar = np.genfromtxt(textfile, dtype = "float32", delimiter = ',', usecols = 0)
+
+        scalar=scalar*3
+        # It first loads the scalar data from the text file, and then loads the atlas file for the shen268 parcellation. 
+        atlas_file = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz')).get_fdata()
+        subcorticalshen = np.loadtxt(os.path.join(atlas_dir, 'shen_subcorticalROIs.txt'))
+        scalar = scalar[0:268]
+        # It then creates an array of nodes by extracting the unique values from the atlas file and removing the value 0. 
+        # The code then creates an empty array of data with the same shape as the atlas file.    
+        # It then iterates over the nodes, and if the node is not in the list of subcortical regions, it assigns the corresponding
+        # value in the scalar array to the data array.    
+        nodes = np.unique(atlas_file)
+        nodes = np.delete(nodes,0)
+        data = np.zeros(atlas_file.shape, dtype=np.float32)
+        for i,n in enumerate(nodes):
+            if n in subcorticalshen:
+                continue
+            data[atlas_file == n] = scalar[i]
+            
+        sample_img = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz'))
+        save_file = '/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata_surfacefile_betas.nii.gz'
+        # store nifti header info for saving file
+        save_img = nib.Nifti1Image(data, sample_img.affine, sample_img.header)
         
-        # freesurfer86 region
-        if scalar.shape[0]==86:
-            
-            # fs86 parcellation - surface files
-            atlas_file = nib.load(os.path.join(atlas_dir,'fs86_dil1_allsubj_mode.nii.gz')).get_fdata()
-            nodes = np.unique(atlas_file)
-            
-            nodes = np.delete(nodes,0)
-            data = np.zeros(atlas_file.shape, dtype=np.float32)
-            for i,n in enumerate(nodes):
-                if n<18:
-                    continue
-                data[atlas_file == n] = scalar[i]
+        save_img.set_data_dtype(data.dtype)
+        
+        nib.save(save_img, save_file) 
+        
+        filename = save_file
+        surf_prefix = filename.replace('.nii.gz', '')
+        
+        for hemi in ['L', 'R']: 
+            os.chdir(wbpath)
+            cmd = './wb_command' + ' -volume-to-surface-mapping '+  filename + ' ' + hcp_dir + '/S1200.' + hemi + '.midthickness_MSMAll.32k_fs_LR.surf.gii '+ surf_prefix + hemi + '.shape.gii -enclosing'
+            os.system(cmd)
+
+
+        os.remove(surf_prefix + '.nii.gz')
+        
+        
+        # fs86 parcellation - subcortical volume ------------
+        os.chdir('/home/ubuntu/enigma/motor_predictions/wb_files/workbench_ubuntu')
+
+        roivol = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz'))
+        Vroi = roivol.get_fdata()
+        Vnew = np.zeros(Vroi.shape)
+        roidata = np.genfromtxt( textfile, dtype = "float32", delimiter = ',', usecols = 0)
+        roidata = roidata*3
+        
+        roidata=roidata[0:268]
+        print(roidata.shape)
+        
+        for i,v in enumerate(np.unique(Vroi[Vroi>0])):
+            Vnew[Vroi == v] = roidata[i]
+        imgnew = nib.Nifti1Image(Vnew, affine = roivol.affine, header = roivol.header)
+        
+        nib.save(imgnew, "subcortical_volumes.nii.gz")
+        datapath =  "subcortical_volumes.nii.gz"
+        newdata = nib.load("subcortical_volumes.nii.gz")
+        
+        cc400 = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz'))
+        atlas2 = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1_subcort.nii'))
+        
+        atlas1=nibabel.processing.resample_from_to(atlas2, cc400, order=0)
+        
+        V400 = cc400.get_fdata()
+        V1 = atlas1.get_fdata()
+        
+        subcortvals = np.unique(V400[(V400>0) * (V1>0)])
+        V400_subcort = V400 * np.isin(V400,subcortvals)
                 
-            sample_img = nib.load(os.path.join(atlas_dir,'fs86_dil1_allsubj_mode.nii.gz'))
-            save_file = os.path.join(results_path, analysis_id ,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betas.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-            
-            # store nifti header info for saving file
-            save_img = nib.Nifti1Image(data, sample_img.affine, sample_img.header)
-            
-            save_img.set_data_dtype(data.dtype)
-            
-            nib.save(save_img, save_file) 
-            
-            filename = save_file
-            surf_prefix = filename.replace('.nii.gz', '')
-            
-            for hemi in ['L', 'R']:
-                os.chdir(wbpath) 
-                cmd = './wb_command' + ' -volume-to-surface-mapping '+  filename + ' ' + hcp_dir + '/S1200.' + hemi + '.midthickness_MSMAll.32k_fs_LR.surf.gii '+ surf_prefix + hemi + '.shape.gii -enclosing'
-                os.system(cmd)
+        imgdata = newdata.get_fdata()            
+        Vnew = np.double(imgdata*(V400_subcort>0))
+        
+        cc400.header.set_data_dtype(np.float64)  # without this the visualization breaks. LOVE IT!
+        
+        newdata_subcort=nib.Nifti1Image(Vnew, affine=cc400.affine, header=cc400.header)
 
-                #cmd = './wb_command -metric-dilate ' + surf_prefix + hemi + '.shape.gii' + ' ' + hcp_dir + '/S1200.' + hemi + '.midthickness_MSMAll.32k_fs_LR.surf.gii 20 ' + surf_prefix + hemi + '_filled.shape.gii -nearest'
-                #os.system(cmd)
-
-            os.remove(surf_prefix + '.nii.gz')
-            
-            
-            # fs86 parcellation - subcortical volume ------------
-            os.chdir('/home/ubuntu/enigma/motor_predictions/wb_files/workbench_ubuntu')
-
-            roivol = nib.load(os.path.join(atlas_dir,'fs86_dil1_allsubj_mode.nii.gz'))
-            Vroi = roivol.get_fdata()
-            Vnew = np.zeros(Vroi.shape)
-            roidata = np.genfromtxt( textfile, dtype = "float32", delimiter = ',', usecols = 0)
-
-            for i,v in enumerate(np.unique(Vroi[Vroi>0])):
-                Vnew[Vroi == v] = roidata[i]
-            imgnew = nib.Nifti1Image(Vnew, affine = roivol.affine, header = roivol.header)
-            
-            nib.save(imgnew, "subcortical_volumes.nii.gz")
-            datapath =  "subcortical_volumes.nii.gz"
-            newdata = nib.load("subcortical_volumes.nii.gz")
-            
-            cc400 = nib.load(os.path.join(atlas_dir,'fs86_dil1_allsubj_mode.nii.gz'))
-            atlas2 = nib.load(os.path.join(atlas_dir,'fs86_dil1_allsubj_mode_subcort.nii.gz'))
-            
-            atlas1=nibabel.processing.resample_from_to(atlas2, cc400, order=0)
-            
-            V400 = cc400.get_fdata()
-            V1 = atlas1.get_fdata()
-            
-            subcortvals = np.unique(V400[(V400>0) * (V1>0)])
-            V400_subcort = V400 * np.isin(V400,subcortvals)
-                   
-            imgdata = newdata.get_fdata()            
-            Vnew = np.double(imgdata*(V400_subcort>0))
-            
-            cc400.header.set_data_dtype(np.float64)  # without this the visualization breaks. LOVE IT!
-            
-            newdata_subcort=nib.Nifti1Image(Vnew, affine=cc400.affine, header=cc400.header)
-
-            save_file = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-            print('saving betas file: {}'.format(save_file))
-            nib.save(newdata_subcort, save_file)
-
-        elif scalar.shape[0]==268:
-            scalar=scalar*3
-            # It first loads the scalar data from the text file, and then loads the atlas file for the shen268 parcellation. 
-            atlas_file = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz')).get_fdata()
-            subcorticalshen = np.loadtxt(os.path.join(atlas_dir, 'shen_subcorticalROIs.txt'))
-            
-            # It then creates an array of nodes by extracting the unique values from the atlas file and removing the value 0. 
-            # The code then creates an empty array of data with the same shape as the atlas file.    
-            # It then iterates over the nodes, and if the node is not in the list of subcortical regions, it assigns the corresponding
-            # value in the scalar array to the data array.    
-            nodes = np.unique(atlas_file)
-            nodes = np.delete(nodes,0)
-            data = np.zeros(atlas_file.shape, dtype=np.float32)
-            for i,n in enumerate(nodes):
-                if n in subcorticalshen:
-                    continue
-                data[atlas_file == n] = scalar[i]
-                
-            sample_img = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz'))
-            save_file = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betas.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-            
-            # store nifti header info for saving file
-            save_img = nib.Nifti1Image(data, sample_img.affine, sample_img.header)
-            
-            save_img.set_data_dtype(data.dtype)
-            
-            nib.save(save_img, save_file) 
-            
-            filename = save_file
-            surf_prefix = filename.replace('.nii.gz', '')
-            
-            for hemi in ['L', 'R']: 
-                os.chdir(wbpath)
-                cmd = './wb_command' + ' -volume-to-surface-mapping '+  filename + ' ' + hcp_dir + '/S1200.' + hemi + '.midthickness_MSMAll.32k_fs_LR.surf.gii '+ surf_prefix + hemi + '.shape.gii -enclosing'
-                os.system(cmd)
-
-
-            os.remove(surf_prefix + '.nii.gz')
-            
-            
-            # fs86 parcellation - subcortical volume ------------
-            os.chdir('/home/ubuntu/enigma/motor_predictions/wb_files/workbench_ubuntu')
-
-            roivol = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz'))
-            Vroi = roivol.get_fdata()
-            Vnew = np.zeros(Vroi.shape)
-            roidata = np.genfromtxt( textfile, dtype = "float32", delimiter = ',', usecols = 0)
-
-            for i,v in enumerate(np.unique(Vroi[Vroi>0])):
-                Vnew[Vroi == v] = roidata[i]
-            imgnew = nib.Nifti1Image(Vnew, affine = roivol.affine, header = roivol.header)
-            
-            nib.save(imgnew, "subcortical_volumes.nii.gz")
-            datapath =  "subcortical_volumes.nii.gz"
-            newdata = nib.load("subcortical_volumes.nii.gz")
-            
-            cc400 = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz'))
-            atlas2 = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1_subcort.nii'))
-            
-            atlas1=nibabel.processing.resample_from_to(atlas2, cc400, order=0)
-            
-            V400 = cc400.get_fdata()
-            V1 = atlas1.get_fdata()
-            
-            subcortvals = np.unique(V400[(V400>0) * (V1>0)])
-            V400_subcort = V400 * np.isin(V400,subcortvals)
-                   
-            imgdata = newdata.get_fdata()            
-            Vnew = np.double(imgdata*(V400_subcort>0))
-            
-            cc400.header.set_data_dtype(np.float64)  # without this the visualization breaks. LOVE IT!
-            
-            newdata_subcort=nib.Nifti1Image(Vnew, affine=cc400.affine, header=cc400.header)
-
-            save_file = os.path.join(results_path, analysis_id ,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-
-            nib.save(newdata_subcort, save_file)
+        save_file = '/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata_subcortical_betas.nii.gz'
+        nib.save(newdata_subcort, save_file)
     
+    else:
+        textfiles_betas = ['median_betas_allperms_95']
+
+
+        for file in textfiles_betas:
+            print('making subcortical + surface betas files')
+            
+            textfile = os.path.join(results_path, output_path, '{}_{}_{}_{}_{}_crossval{}_{}.txt'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            
+            # load text file in fs86 parc (86,1) vector/shen268 parc (268,1)
+            scalar = np.genfromtxt(textfile, dtype = "float32", delimiter = ',', usecols = 0)
+            
+            # freesurfer86 region
+            if scalar.shape[0]==86:
+                scalar = scalar/factor
+                # fs86 parcellation - surface files
+                atlas_file = nib.load(os.path.join(atlas_dir,'fs86_dil1_allsubj_mode.nii.gz')).get_fdata()
+                nodes = np.unique(atlas_file)
+                
+                nodes = np.delete(nodes,0)
+                data = np.zeros(atlas_file.shape, dtype=np.float32)
+                for i,n in enumerate(nodes):
+                    if n<18:
+                        continue
+                    data[atlas_file == n] = scalar[i]
+                    
+                sample_img = nib.load(os.path.join(atlas_dir,'fs86_dil1_allsubj_mode.nii.gz'))
+                save_file = os.path.join(results_path, analysis_id ,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betas.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+                
+                # store nifti header info for saving file
+                save_img = nib.Nifti1Image(data, sample_img.affine, sample_img.header)
+                
+                save_img.set_data_dtype(data.dtype)
+                
+                nib.save(save_img, save_file) 
+                
+                filename = save_file
+                surf_prefix = filename.replace('.nii.gz', '')
+                
+                for hemi in ['L', 'R']:
+                    os.chdir(wbpath) 
+                    cmd = './wb_command' + ' -volume-to-surface-mapping '+  filename + ' ' + hcp_dir + '/S1200.' + hemi + '.midthickness_MSMAll.32k_fs_LR.surf.gii '+ surf_prefix + hemi + '.shape.gii -enclosing'
+                    os.system(cmd)
+
+                    #cmd = './wb_command -metric-dilate ' + surf_prefix + hemi + '.shape.gii' + ' ' + hcp_dir + '/S1200.' + hemi + '.midthickness_MSMAll.32k_fs_LR.surf.gii 20 ' + surf_prefix + hemi + '_filled.shape.gii -nearest'
+                    #os.system(cmd)
+
+                os.remove(surf_prefix + '.nii.gz')
+                
+                
+                # fs86 parcellation - subcortical volume ------------
+                os.chdir('/home/ubuntu/enigma/motor_predictions/wb_files/workbench_ubuntu')
+
+                roivol = nib.load(os.path.join(atlas_dir,'fs86_dil1_allsubj_mode.nii.gz'))
+                Vroi = roivol.get_fdata()
+                Vnew = np.zeros(Vroi.shape)
+                roidata = np.genfromtxt( textfile, dtype = "float32", delimiter = ',', usecols = 0)
+                roidata=roidata/factor
+                for i,v in enumerate(np.unique(Vroi[Vroi>0])):
+                    Vnew[Vroi == v] = roidata[i]
+                imgnew = nib.Nifti1Image(Vnew, affine = roivol.affine, header = roivol.header)
+                
+                nib.save(imgnew, "subcortical_volumes.nii.gz")
+                datapath =  "subcortical_volumes.nii.gz"
+                newdata = nib.load("subcortical_volumes.nii.gz")
+                
+                cc400 = nib.load(os.path.join(atlas_dir,'fs86_dil1_allsubj_mode.nii.gz'))
+                atlas2 = nib.load(os.path.join(atlas_dir,'fs86_dil1_allsubj_mode_subcort.nii.gz'))
+                
+                atlas1=nibabel.processing.resample_from_to(atlas2, cc400, order=0)
+                
+                V400 = cc400.get_fdata()
+                V1 = atlas1.get_fdata()
+                
+                subcortvals = np.unique(V400[(V400>0) * (V1>0)])
+                V400_subcort = V400 * np.isin(V400,subcortvals)
+                    
+                imgdata = newdata.get_fdata()            
+                Vnew = np.double(imgdata*(V400_subcort>0))
+                
+                cc400.header.set_data_dtype(np.float64)  # without this the visualization breaks. LOVE IT!
+                
+                newdata_subcort=nib.Nifti1Image(Vnew, affine=cc400.affine, header=cc400.header)
+
+                save_file = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+                print('saving betas file: {}'.format(save_file))
+                nib.save(newdata_subcort, save_file)
+
+            elif scalar.shape[0]==268:
+                scalar=scalar/factor
+                # It first loads the scalar data from the text file, and then loads the atlas file for the shen268 parcellation. 
+                atlas_file = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz')).get_fdata()
+                subcorticalshen = np.loadtxt(os.path.join(atlas_dir, 'shen_subcorticalROIs.txt'))
+                scalar = scalar[0:268]
+                # It then creates an array of nodes by extracting the unique values from the atlas file and removing the value 0. 
+                # The code then creates an empty array of data with the same shape as the atlas file.    
+                # It then iterates over the nodes, and if the node is not in the list of subcortical regions, it assigns the corresponding
+                # value in the scalar array to the data array.    
+                nodes = np.unique(atlas_file)
+                nodes = np.delete(nodes,0)
+                data = np.zeros(atlas_file.shape, dtype=np.float32)
+                for i,n in enumerate(nodes):
+                    if n in subcorticalshen:
+                        continue
+                    data[atlas_file == n] = scalar[i]
+                    
+                sample_img = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz'))
+                save_file = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betas.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+                
+                # store nifti header info for saving file
+                save_img = nib.Nifti1Image(data, sample_img.affine, sample_img.header)
+                
+                save_img.set_data_dtype(data.dtype)
+                
+                nib.save(save_img, save_file) 
+                
+                filename = save_file
+                surf_prefix = filename.replace('.nii.gz', '')
+                
+                for hemi in ['L', 'R']: 
+                    os.chdir(wbpath)
+                    cmd = './wb_command' + ' -volume-to-surface-mapping '+  filename + ' ' + hcp_dir + '/S1200.' + hemi + '.midthickness_MSMAll.32k_fs_LR.surf.gii '+ surf_prefix + hemi + '.shape.gii -enclosing'
+                    os.system(cmd)
+
+
+                os.remove(surf_prefix + '.nii.gz')
+                
+                
+                # fs86 parcellation - subcortical volume ------------
+                os.chdir('/home/ubuntu/enigma/motor_predictions/wb_files/workbench_ubuntu')
+
+                roivol = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz'))
+                Vroi = roivol.get_fdata()
+                Vnew = np.zeros(Vroi.shape)
+                roidata = np.genfromtxt( textfile, dtype = "float32", delimiter = ',', usecols = 0)
+                roidata = roidata/factor
+                
+                roidata=roidata[0:268]
+                print(roidata.shape)
+                
+                for i,v in enumerate(np.unique(Vroi[Vroi>0])):
+                    Vnew[Vroi == v] = roidata[i]
+                imgnew = nib.Nifti1Image(Vnew, affine = roivol.affine, header = roivol.header)
+                
+                nib.save(imgnew, "subcortical_volumes.nii.gz")
+                datapath =  "subcortical_volumes.nii.gz"
+                newdata = nib.load("subcortical_volumes.nii.gz")
+                
+                cc400 = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz'))
+                atlas2 = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1_subcort.nii'))
+                
+                atlas1=nibabel.processing.resample_from_to(atlas2, cc400, order=0)
+                
+                V400 = cc400.get_fdata()
+                V1 = atlas1.get_fdata()
+                
+                subcortvals = np.unique(V400[(V400>0) * (V1>0)])
+                V400_subcort = V400 * np.isin(V400,subcortvals)
+                    
+                imgdata = newdata.get_fdata()            
+                Vnew = np.double(imgdata*(V400_subcort>0))
+                
+                cc400.header.set_data_dtype(np.float64)  # without this the visualization breaks. LOVE IT!
+                
+                newdata_subcort=nib.Nifti1Image(Vnew, affine=cc400.affine, header=cc400.header)
+
+                save_file = os.path.join(results_path, analysis_id ,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+
+                nib.save(newdata_subcort, save_file)
+        
 def generate_wb_figures_setup(hcp_dir, scenesdir):
     # update MNI volumetric template path (rel path stored in wb)
     # Read in the file
@@ -673,96 +760,49 @@ def generate_wb_figures_setup(hcp_dir, scenesdir):
         f.write(scenefile) 
     #these are the scene templates that will be used to create figures for the shen/fs feature weights.
 
-
-def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subset, model_tested,crossval,scenesdir, wbpath):
+def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subset, model_tested,crossval,scenesdir, wbpath, final_model):
     
-    textfiles_betas = ['meanbetas_allperms_0','meanbetas_allperms_50']
-
-    for file in textfiles_betas:
-
-        subcortical_file = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-        surface_fileR = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-        surface_fileL = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasL.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-        
+    
+    if final_model=='true':
+        subcortical_file = '/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata_subcortical_betas.nii.gz'
+        surface_fileL = '/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata_surfacefile_betasL.shape.gii'
+        surface_fileR = '/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata_surfacefile_betasR.shape.gii'
         # because workbench is sooo intuitive, palette/visualization settings are stored in the nifti/gifti metadata!
         # have to rewrite the nifti files with nifti header info derived from manually setting the palette in workbench.
-        niftimeta = nib.load(os.path.join(scenesdir, 'niftimetadata.nii.gz'))
+        niftimeta = nib.load(os.path.join(scenesdir, 'niftimetadata_POSNEG.nii.gz'))
         newsubcortfile = nib.Nifti1Image(nib.load(subcortical_file).get_fdata(), niftimeta.affine, niftimeta.header)
         nib.save(newsubcortfile, subcortical_file)
         
-        niftimeta_pos = nib.load(os.path.join(scenesdir, 'niftimetadata_pos.nii.gz'))
-        subcortical_file_pos = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-        newsubcortfile = nib.Nifti1Image(nib.load(subcortical_file_pos).get_fdata(), niftimeta_pos.affine, niftimeta_pos.header)
-        nib.save(newsubcortfile, subcortical_file_pos)
-        
-        #workbench changes the dataarray metadata.
-        # keep the metadata for reference gifti, replace with data from actual feature file
-        giftimetaR = nib.load(os.path.join(scenesdir, 'surfmetadataR.shape.gii')) # reference gifti
+        giftimetaR = nib.load(os.path.join(scenesdir, 'surfmetadataL_posneg.shape.gii')) # reference gifti
         giftimetaR.darrays[0].data = nib.load(surface_fileR).darrays[0].data
         newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaR.header, extra=None, file_map = giftimetaR.file_map, labeltable=giftimetaR.labeltable, darrays=giftimetaR.darrays, meta = giftimetaR.meta, version='1.0')
-        nib.save(newgifti, surface_fileR)
-        giftimetaL = nib.load(os.path.join(scenesdir,'surfmetadataL.shape.gii')) # reference gifti
-        giftimetaL.darrays[0].data = nib.load(surface_fileL).darrays[0].data
-        newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaL.header, extra=None, file_map = giftimetaL.file_map, labeltable=giftimetaL.labeltable, darrays=giftimetaL.darrays, meta = giftimetaL.meta, version='1.0')
-        nib.save(newgifti, surface_fileL)
-
-        giftimetaR = nib.load(os.path.join(scenesdir, 'surfmetadataR_pos.shape.gii')) # reference gifti
-        giftimetaR.darrays[0].data = nib.load(surface_fileR).darrays[0].data
-        newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaR.header, extra=None, file_map = giftimetaR.file_map, labeltable=giftimetaR.labeltable, darrays=giftimetaR.darrays, meta = giftimetaR.meta, version='1.0')
-        surface_fileRpos = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR_pos.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-
+        surface_fileRpos = surface_fileR
         nib.save(newgifti, surface_fileRpos)
-        giftimetaL = nib.load(os.path.join(scenesdir,'surfmetadataL_pos.shape.gii')) # reference gifti
+        giftimetaL = nib.load(os.path.join(scenesdir,'surfmetadataR_posneg.shape.gii')) # reference gifti
         giftimetaL.darrays[0].data = nib.load(surface_fileL).darrays[0].data
         newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaL.header, extra=None, file_map = giftimetaL.file_map, labeltable=giftimetaL.labeltable, darrays=giftimetaL.darrays, meta = giftimetaL.meta, version='1.0')
-        surface_fileLpos = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR_pos.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-
+        surface_fileLpos =surface_fileL
         nib.save(newgifti, surface_fileLpos)
-                
-        # make copy of the scenes file that we modify for each figure.
+        
         shutil.copy(os.path.join(scenesdir,'subcort_scene_edit.scene'), os.path.join(results_path,analysis_id,'subcortical_scene.scene'))
-        shutil.copy(os.path.join(scenesdir,'subcort_scene_edit.scene'), os.path.join(results_path,analysis_id,'subcortical_scene_pos.scene'))
-
-        shutil.copy(os.path.join(scenesdir,'landscape_surfaces_edit.scene'), os.path.join(results_path,analysis_id,'surfaces_scene.scene')) 
         shutil.copy(os.path.join(scenesdir,'landscape_surfaces_edit.scene'), os.path.join(results_path,analysis_id,'surfaces_scene_pos.scene')) 
-
-        shutil.copy(os.path.join(scenesdir,'dorsal_surface_edit.scene'), os.path.join(results_path,analysis_id,'dorsalsurfaces_scene.scene')) 
         shutil.copy(os.path.join(scenesdir,'dorsal_surface_edit.scene'), os.path.join(results_path,analysis_id,'dorsalsurfaces_scene_pos.scene')) 
-
+        
         # replace volume/surface files with specific results files.
         with open(os.path.join(results_path, analysis_id, 'subcortical_scene.scene'), "r") as f:
             scenefile = f.read()
             scenefile = scenefile.replace('subcortical_volumes.nii.gz',subcortical_file)
         with open(os.path.join(results_path, analysis_id, 'subcortical_scene.scene'), 'w') as f:
             f.write(scenefile)
-        with open(os.path.join(results_path, analysis_id, 'subcortical_scene_pos.scene'), "r") as f:
-            scenefile = f.read()
-            scenefile = scenefile.replace('subcortical_volumes.nii.gz',subcortical_file_pos)
-        with open(os.path.join(results_path, analysis_id, 'subcortical_scene_pos.scene'), 'w') as f:
-            f.write(scenefile)
-            
-              
-        with open(os.path.join(results_path, analysis_id, 'surfaces_scene.scene'), "r") as f:
-            scenefile = f.read()
-            scenefile = scenefile.replace('surfL.gii',surface_fileL)
-            scenefile = scenefile.replace('surfR.gii',surface_fileR)
-        with open(os.path.join(results_path, analysis_id, 'surfaces_scene.scene'), 'w') as f:
-            f.write(scenefile)
-            
+        
+        
         with open(os.path.join(results_path, analysis_id, 'surfaces_scene_pos.scene'), "r") as f:
             scenefile = f.read()
             scenefile = scenefile.replace('surfL.gii',surface_fileLpos)
             scenefile = scenefile.replace('surfR.gii',surface_fileRpos)
         with open(os.path.join(results_path, analysis_id, 'surfaces_scene_pos.scene'), 'w') as f:
             f.write(scenefile)  
-            
-        with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene.scene'), "r") as f:
-            scenefile = f.read()
-            scenefile = scenefile.replace('surfL.gii',surface_fileL)
-            scenefile = scenefile.replace('surfR.gii',surface_fileR)
-        with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene.scene'), 'w') as f:
-            f.write(scenefile)   
-            
+        
         with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene_pos.scene'), "r") as f:
             scenefile = f.read()
             scenefile = scenefile.replace('surfL.gii',surface_fileLpos)
@@ -772,40 +812,152 @@ def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subs
             
         # subcortical scene
         
-        figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+        figurefile ='/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata_subcortical_betas_fig.png'
         scenefile = os.path.join(results_path, analysis_id,'subcortical_scene.scene')
         print('Generating workbench figures:\n {}'.format(figurefile))
         os.system('bash {}/wb_command -show-scene {} 1 {} 1500 300'.format(wbpath, scenefile, figurefile))
         
-        figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_pos_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-        scenefile = os.path.join(results_path, analysis_id,'subcortical_scene_pos.scene')
-        print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 1500 300'.format(wbpath, scenefile, figurefile))
-            
         # surface scene2
         
-        figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-        scenefile = os.path.join(results_path, analysis_id,'surfaces_scene.scene')
-        print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 1300 900'.format(wbpath, scenefile, figurefile))
-        
-        figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfaces_betas_pos_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+        figurefile ='/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata_surfaces_betas_pos_fig.png'
         scenefile = os.path.join(results_path, analysis_id,'surfaces_scene_pos.scene')
         print('Generating workbench figures:\n {}'.format(figurefile))
         os.system('bash {}/wb_command -show-scene {} 1 {} 1300 900'.format(wbpath, scenefile, figurefile))
 
-        figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_dorsalsurfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-        scenefile = os.path.join(results_path, analysis_id,'dorsalsurfaces_scene.scene')
-        print('Generating workbench figures:\n {}'.format(figurefile))
-        os.system('bash {}/wb_command -show-scene {} 1 {} 10000 1300'.format(wbpath, scenefile, figurefile))
-        
-        figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_dorsalsurfaces_betas_pos_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+        figurefile ='/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata_dorsalsurfaces_betas_pos_fig.png'
         scenefile = os.path.join(results_path, analysis_id,'dorsalsurfaces_scene_pos.scene')
         print('Generating workbench figures:\n {}'.format(figurefile))
         os.system('bash {}/wb_command -show-scene {} 1 {} 10000 1300'.format(wbpath, scenefile, figurefile)) 
     
-    # smatt files:
-    surface_fileR = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+    
+    else:
+        
+        textfiles_betas = ['median_betas_allperms_95']
+            
+        for file in textfiles_betas:
+
+            subcortical_file = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            surface_fileR = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            surface_fileL = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasL.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            
+            # because workbench is sooo intuitive, palette/visualization settings are stored in the nifti/gifti metadata!
+            # have to rewrite the nifti files with nifti header info derived from manually setting the palette in workbench.
+            niftimeta = nib.load(os.path.join(scenesdir, 'niftimetadata_POSNEG.nii.gz'))
+            subcortical_file = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+
+            newsubcortfile = nib.Nifti1Image(nib.load(subcortical_file).get_fdata(), niftimeta.affine, niftimeta.header)
+            nib.save(newsubcortfile, subcortical_file)
+            
+            niftimeta_pos = nib.load(os.path.join(scenesdir, 'niftimetadata_pos.nii.gz'))
+            subcortical_file_pos = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file_pos.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            newsubcortfile = nib.Nifti1Image(nib.load(subcortical_file).get_fdata(), niftimeta_pos.affine, niftimeta_pos.header)
+            nib.save(newsubcortfile, subcortical_file_pos)
+            
+            #workbench changes the dataarray metadata.
+            # keep the metadata for reference gifti, replace with data from actual feature file
+            giftimetaR = nib.load(os.path.join(scenesdir, 'surfmetadataR.shape.gii')) # reference gifti
+            giftimetaR.darrays[0].data = nib.load(surface_fileR).darrays[0].data
+            newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaR.header, extra=None, file_map = giftimetaR.file_map, labeltable=giftimetaR.labeltable, darrays=giftimetaR.darrays, meta = giftimetaR.meta, version='1.0')
+            nib.save(newgifti, surface_fileR)
+            giftimetaL = nib.load(os.path.join(scenesdir,'surfmetadataL.shape.gii')) # reference gifti
+            giftimetaL.darrays[0].data = nib.load(surface_fileL).darrays[0].data
+            newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaL.header, extra=None, file_map = giftimetaL.file_map, labeltable=giftimetaL.labeltable, darrays=giftimetaL.darrays, meta = giftimetaL.meta, version='1.0')
+            nib.save(newgifti, surface_fileL)
+
+            giftimetaR = nib.load(os.path.join(scenesdir, 'surfmetadataL_posneg.shape.gii')) # reference gifti
+            giftimetaR.darrays[0].data = nib.load(surface_fileR).darrays[0].data
+            newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaR.header, extra=None, file_map = giftimetaR.file_map, labeltable=giftimetaR.labeltable, darrays=giftimetaR.darrays, meta = giftimetaR.meta, version='1.0')
+            surface_fileRpos = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasL_pos.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            nib.save(newgifti, surface_fileRpos)
+            giftimetaL = nib.load(os.path.join(scenesdir,'surfmetadataR_posneg.shape.gii')) # reference gifti
+            giftimetaL.darrays[0].data = nib.load(surface_fileL).darrays[0].data
+            newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaL.header, extra=None, file_map = giftimetaL.file_map, labeltable=giftimetaL.labeltable, darrays=giftimetaL.darrays, meta = giftimetaL.meta, version='1.0')
+            surface_fileLpos = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR_pos.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            nib.save(newgifti, surface_fileLpos)
+                    
+            # make copy of the scenes file that we modify for each figure.
+            shutil.copy(os.path.join(scenesdir,'subcort_scene_edit.scene'), os.path.join(results_path,analysis_id,'subcortical_scene.scene'))
+            shutil.copy(os.path.join(scenesdir,'subcort_scene_edit.scene'), os.path.join(results_path,analysis_id,'subcortical_scene_pos.scene'))
+
+            shutil.copy(os.path.join(scenesdir,'landscape_surfaces_edit.scene'), os.path.join(results_path,analysis_id,'surfaces_scene.scene')) 
+            shutil.copy(os.path.join(scenesdir,'landscape_surfaces_edit.scene'), os.path.join(results_path,analysis_id,'surfaces_scene_pos.scene')) 
+
+            shutil.copy(os.path.join(scenesdir,'dorsal_surface_edit.scene'), os.path.join(results_path,analysis_id,'dorsalsurfaces_scene.scene')) 
+            shutil.copy(os.path.join(scenesdir,'dorsal_surface_edit.scene'), os.path.join(results_path,analysis_id,'dorsalsurfaces_scene_pos.scene')) 
+
+            # replace volume/surface files with specific results files.
+            with open(os.path.join(results_path, analysis_id, 'subcortical_scene.scene'), "r") as f:
+                scenefile = f.read()
+                scenefile = scenefile.replace('subcortical_volumes.nii.gz',subcortical_file)
+            with open(os.path.join(results_path, analysis_id, 'subcortical_scene.scene'), 'w') as f:
+                f.write(scenefile)
+            with open(os.path.join(results_path, analysis_id, 'subcortical_scene_pos.scene'), "r") as f:
+                scenefile = f.read()
+                scenefile = scenefile.replace('subcortical_volumes.nii.gz',subcortical_file_pos)
+            with open(os.path.join(results_path, analysis_id, 'subcortical_scene_pos.scene'), 'w') as f:
+                f.write(scenefile)
+            with open(os.path.join(results_path, analysis_id, 'surfaces_scene.scene'), "r") as f:
+                scenefile = f.read()
+                scenefile = scenefile.replace('surfL.gii',surface_fileL)
+                scenefile = scenefile.replace('surfR.gii',surface_fileR)
+            with open(os.path.join(results_path, analysis_id, 'surfaces_scene.scene'), 'w') as f:
+                f.write(scenefile)
+            with open(os.path.join(results_path, analysis_id, 'surfaces_scene_pos.scene'), "r") as f:
+                scenefile = f.read()
+                scenefile = scenefile.replace('surfL.gii',surface_fileLpos)
+                scenefile = scenefile.replace('surfR.gii',surface_fileRpos)
+            with open(os.path.join(results_path, analysis_id, 'surfaces_scene_pos.scene'), 'w') as f:
+                f.write(scenefile)  
+            with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene.scene'), "r") as f:
+                scenefile = f.read()
+                scenefile = scenefile.replace('surfL.gii',surface_fileL)
+                scenefile = scenefile.replace('surfR.gii',surface_fileR)
+            with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene.scene'), 'w') as f:
+                f.write(scenefile)   
+                
+            with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene_pos.scene'), "r") as f:
+                scenefile = f.read()
+                scenefile = scenefile.replace('surfL.gii',surface_fileLpos)
+                scenefile = scenefile.replace('surfR.gii',surface_fileRpos)
+            with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene_pos.scene'), 'w') as f:
+                f.write(scenefile)   
+                
+            # subcortical scene
+            
+            figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            scenefile = os.path.join(results_path, analysis_id,'subcortical_scene.scene')
+            print('Generating workbench figures:\n {}'.format(figurefile))
+            os.system('bash {}/wb_command -show-scene {} 1 {} 1500 300'.format(wbpath, scenefile, figurefile))
+            
+            figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_pos_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            scenefile = os.path.join(results_path, analysis_id,'subcortical_scene_pos.scene')
+            print('Generating workbench figures:\n {}'.format(figurefile))
+            os.system('bash {}/wb_command -show-scene {} 1 {} 1500 300'.format(wbpath, scenefile, figurefile))
+                
+            # surface scene2
+            
+            figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            scenefile = os.path.join(results_path, analysis_id,'surfaces_scene.scene')
+            print('Generating workbench figures:\n {}'.format(figurefile))
+            os.system('bash {}/wb_command -show-scene {} 1 {} 1300 900'.format(wbpath, scenefile, figurefile))
+            
+            figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfaces_betas_pos_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            scenefile = os.path.join(results_path, analysis_id,'surfaces_scene_pos.scene')
+            print('Generating workbench figures:\n {}'.format(figurefile))
+            os.system('bash {}/wb_command -show-scene {} 1 {} 1300 900'.format(wbpath, scenefile, figurefile))
+
+            figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_dorsalsurfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            scenefile = os.path.join(results_path, analysis_id,'dorsalsurfaces_scene.scene')
+            print('Generating workbench figures:\n {}'.format(figurefile))
+            os.system('bash {}/wb_command -show-scene {} 1 {} 10000 1300'.format(wbpath, scenefile, figurefile))
+            
+            figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_dorsalsurfaces_betas_pos_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            scenefile = os.path.join(results_path, analysis_id,'dorsalsurfaces_scene_pos.scene')
+            print('Generating workbench figures:\n {}'.format(figurefile))
+            os.system('bash {}/wb_command -show-scene {} 1 {} 10000 1300'.format(wbpath, scenefile, figurefile)) 
+        
+        # smatt files:
+        surface_fileR = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
 
         
 def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval):
