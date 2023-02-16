@@ -15,9 +15,34 @@ Column names can be entered into the pipeline according to the documentation bel
 
 - Subject IDs correspond to NeMo outputs
 
+## Outputs:
 
+The information entered into parse_args.py will be used to save results into files, according to the following structure:
 
+```
+filename_prefix =  '{}_{}_{}_{}_{}_crossval{}_perm{}_'.format(atlas, y_var, chaco_type, subset, model_specified, crossval_type,n)
+```
+where n is the permutation #.
+e.g., 
 
+```
+shen268_normed_motor_scores_chacovol_chronic_ridge_crossval1_perm0_
+```
+
+### Outputs you may care about:
+
+- _scores.py
+-- R^2 scores for all test folds in the outer loop
+- _correlations.npy
+-- Correlations between true & predicted outcomes for all test folds in outer loop
+- _beta_coeffs.npy
+-- Beta coefficients for features
+- _model.py 
+-- The final trained model for all training folds
+- _test_group_sizes.py 
+-- Size of subjects in test folds.
+
+## Documentation of inputs
 ```
 usage: parse_args.py [-h] [--nemo_path NEMO_PATH] [--nemo_settings NEMO_SETTINGS] [--yvar_colname YVAR_COLNAME] [--subid_colname SUBID_COLNAME] [--site_colname SITE_COLNAME] [--chronicity_colname CHRONICITY_COLNAME] [--csv_path CSV_PATH] [--y_var Y_VAR] [--subsets SUBSETS]
                      [--model_specified MODEL_SPECIFIED] [--verbose VERBOSE] [--covariates COVARIATES] [--lesionload_types LESIONLOAD_TYPES] [--nperms NPERMS] [--save_models SAVE_MODELS] [--ensembles ENSEMBLES] [--atlases ATLASES] [--chaco_types CHACO_TYPES] [--crossval_types CROSSVAL_TYPES]
