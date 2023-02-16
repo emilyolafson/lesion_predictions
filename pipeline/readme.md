@@ -15,8 +15,23 @@ and optionally,
 Column names can be entered into the pipeline according to the documentation below.
 
 - Subject IDs correspond to NeMo outputs
+- 
+
 
 ## Outputs:
+
+### Basic outputs you may care about:
+
+- {fileprefix}_scores.py
+-- R^2 scores for all test folds in the outer loop
+- {fileprefix}_correlations.npy
+-- Correlations between true & predicted outcomes for all test folds in outer loop
+- {fileprefix}_beta_coeffs.npy
+-- Beta coefficients for features
+- {fileprefix}_model.py 
+-- The final trained model for all training folds
+- {fileprefix}_test_group_sizes.py 
+-- Size of subjects in test folds.
 
 The information entered into parse_args.py will be used to save results into files, producing prefixes according to the structure:
 
@@ -24,25 +39,17 @@ The information entered into parse_args.py will be used to save results into fil
 fileprefix = {atlas}_{y_var}_{chaco_type}_{subset}_{model_specified}_crossval{crossval_type}_{n}_
 ```
 where n is the permutation #.
-e.g., 
+e.g.,
 
 ```
 shen268_normed_motor_scores_chacovol_chronic_ridge_crossval1_perm0_
 ```
 would be the prefix using the atlas "shen268", where y_var is "normed_motor_scores", chaco_types is "chacovol", subsets is "chronic", model_specified is "ridge", crossval_type is "1"
 
-### Outputs you probably care about:
+Files are saved as .npy pickled objects in the folder results_path.
 
-- _scores.py
--- R^2 scores for all test folds in the outer loop
-- _correlations.npy
--- Correlations between true & predicted outcomes for all test folds in outer loop
-- _beta_coeffs.npy
--- Beta coefficients for features
-- _model.py 
--- The final trained model for all training folds
-- _test_group_sizes.py 
--- Size of subjects in test folds.
+See analysis_1.sh for an example of how to call parse_args.py and run the model.
+
 
 ## Documentation of inputs
 ```
