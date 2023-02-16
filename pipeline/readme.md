@@ -30,7 +30,7 @@ shen268_normed_motor_scores_chacovol_chronic_ridge_crossval1_perm0_
 ```
 would be the prefix using the atlas "shen268", where y_var is "normed_motor_scores", chaco_types is "chacovol", subsets is "chronic", model_specified is "ridge", crossval_type is "1"
 
-### Outputs you may care about:
+### Outputs you probably care about:
 
 - _scores.py
 -- R^2 scores for all test folds in the outer loop
