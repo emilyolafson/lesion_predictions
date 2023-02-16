@@ -1,4 +1,22 @@
 ![Pipeline](pipeline.png)
+
+Some assumptions of the pipeline:
+
+- Your data is stored in a .csv file that contains subjects in rows, with named columns containing 
+1) subject IDs (e.g. BIDS_ID)
+2) A singular outcome variable
+
+and optionally 
+3) covariates of interest (e.g. sex, age)
+4) lesion load values 
+
+Column names can be entered into the pipeline according to the documentation below.
+
+- Subject IDs correspond to NeMo outputs
+
+
+
+
 ```
 usage: parse_args.py [-h] [--nemo_path NEMO_PATH] [--nemo_settings NEMO_SETTINGS] [--yvar_colname YVAR_COLNAME] [--subid_colname SUBID_COLNAME] [--site_colname SITE_COLNAME] [--chronicity_colname CHRONICITY_COLNAME] [--csv_path CSV_PATH] [--y_var Y_VAR] [--subsets SUBSETS]
                      [--model_specified MODEL_SPECIFIED] [--verbose VERBOSE] [--covariates COVARIATES] [--lesionload_types LESIONLOAD_TYPES] [--nperms NPERMS] [--save_models SAVE_MODELS] [--ensembles ENSEMBLES] [--atlases ATLASES] [--chaco_types CHACO_TYPES] [--crossval_types CROSSVAL_TYPES]
