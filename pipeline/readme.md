@@ -6,7 +6,8 @@ Some assumptions of the pipeline:
 1) subject IDs (e.g. BIDS_ID)
 2) A singular outcome variable
 
-and optionally 
+and optionally,
+
 3) covariates of interest (e.g. sex, age)
 4) lesion load values 
 
