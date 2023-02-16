@@ -41,13 +41,14 @@ This repository contains code to predict chronic motor scores from lesion data.
 
 
 # M1 lesion load
+![M1_pic](figures/M1.png)
 Calculate the lesion load on the corticospinal tract originating from ipsilesional M1. 
 Template: [Sensorimotor Area Tract Template (SMATT)](http://lrnlab.org/)
 Calculated as the number of lesioned voxels that intersect with the ipsilesional M1-CST.
 
 
 # SMATT CST lesion load
-![SMATT_pic](figures/smatt_template.png)
+![SMATT_pic](figures/all_SMATT_stacked.png)
 Calcualte the lesion load on all ipsilesional corticospinal tracts originating from M1 (primary motor cortex), S1 (sensorimotor cortex), SMA (supplementary motor area), pre-SMA (pre-supplementary motor area), ventral premotor cortex (PMv), and dorsal premotor cortex (PMd).
 Calculated as the proportion of lesioned voxels that intersect with each ipsilesional tract.
 
@@ -59,7 +60,7 @@ Code:
 - python: SMATT_lesion_load.ipynb (uses nibabel)
 
 # Estimate structural disconnection
-![nemo_pic](figures/NetworkModificationTool.png)
+![nemo_pic](figures/chaco-git.png)
 The Network Modification Tool [NeMo 2.1](https://kuceyeski-wcm-web.s3.us-east-1.amazonaws.com/upload.html) can be used to estimate regional or pairwise change in connectivity (ChaCo) scores, given a binary lesion mask.
 
 ## Contributing
