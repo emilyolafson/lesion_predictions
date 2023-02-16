@@ -28,7 +28,7 @@ e.g.,
 ```
 shen268_normed_motor_scores_chacovol_chronic_ridge_crossval1_perm0_
 ```
-would be the prefix using the atlas "shen268", where normed_motor_scores is "y_var" indicated below, chaco_types is "chacovol", subsets is "chronic", model_specified is "ridge", crossval_type is "1"
+would be the prefix using the atlas "shen268", where y_var is "normed_motor_scores", chaco_types is "chacovol", subsets is "chronic", model_specified is "ridge", crossval_type is "1"
 
 ### Outputs you may care about:
 
