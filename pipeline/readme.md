@@ -10,6 +10,7 @@ and optionally,
 
 3) covariates of interest (e.g. sex, age)
 4) lesion load values 
+5) chronicity
 
 Column names can be entered into the pipeline according to the documentation below.
 
