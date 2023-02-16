@@ -248,24 +248,11 @@ def inner_loop(mdl, mdl_label, X, Y, group, inner_cv, n_jobs):
 
     return best_mdl
 
-def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, X):
-    # This code mplements a transformation for the results of a machine learning model trained on brain imaging data. 
-    # The function takes as input the training data (X_train, y_train), the indices of the columns in the training data used as features (cols),
-    # the trained model (mdl), the label of the model (mdl_label), the type of cross-validation used (chaco_type), the atlas used (atlas),
-    # and the full data matrix (X).
-
-    # The function first computes the covariance matrices of the dependent and independent variables. Then, it computes the activation and 
-    # beta coefficients of the model. Depending on the value of chaco_type and atlas, the function may apply further transformations
-    # to the activation and beta coefficients. Finally, the function returns the transformed activation and beta coefficients. 
+def get_beta_coefficients(cols, mdl, mdl_label, chaco_type, atlas, X):
+    # In case there was feature selection, return full size feature set with 0s for features not selected
     
-    cov_y=np.cov(np.transpose(y_train))
-    x_sub = X_train[:,cols]
-    cov_x=np.cov(np.transpose(x_sub))
     beta_coeffs = mdl.named_steps[mdl_label].coef_
     
-    weight=beta_coeffs
-    activation=np.matmul(cov_x,weight)*(1/cov_y)
-
     # first transform (ie rearrange) the beta coefficients
 
     if chaco_type =='chacovol':
@@ -414,8 +401,7 @@ def haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, 
             beta_coeffs = shen268_counts
         
 
-        activation=[]
-    return activation, beta_coeffs
+    return beta_coeffs
 
 def create_outer_cv(outer_cv_id):
     #This code defines a function that creates a cross-validation object for use in training and evaluating machine learning models.
@@ -454,7 +440,7 @@ def create_inner_cv(inner_cv_id, perm):
     
 def run_regression(x, Y, group, inner_cv_id, outer_cv_id, model_tested, atlas, y_var, chaco_type, subset, save_models,results_path,crossval_type,nperms,null, output_path, acute_data):
     # This code implements a cross-validation procedure for training and evaluating machine learning models on brain imaging data. 
-    # The function takes as input the features (x), labels (Y), grouping information (group), inner and outer cross-validation indices 
+    # The function takes as input the features (x), labels (Y), grouping information (group), inner and outer cross-validation schemes 
     # (inner_cv_id, outer_cv_id), a list of models to test (model_tested), an atlas of the brain (atlas), the name of the dependent variable 
     # (y_var), a string indicating the type of structural disconnection (chaco_type), a subset of the data to use (subset), a flag indicating whether
     # to save trained models (save_models), a path to save the results (results_path), the type of cross-validation (crossval_type), the number
@@ -474,14 +460,12 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, model_tested, atlas, y
     elif atlas == 'lesionload_all_2h' or atlas == 'lesionload_slnm':
         X=np.array(x)
     else:
-        X = prepare_data(x) 
+        X = x
         
-    print('X shape is:')
-    print(X.shape)
-        
+    
     if acute_data:
         acute_Y = acute_data['acute_Y']
-        acute_site = acute_data['acute_site']
+        acute_site = acute_data['acute_subIDs']
         if atlas =='lesionload_m1' :
             acute_X =acute_data['acute_LL']
             acute_X=np.array(acute_X).reshape(-1,1)
@@ -493,27 +477,25 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, model_tested, atlas, y
             acute_X=np.array(acute_X)
         else:
             acute_X =acute_data['acute_X']
-            acute_X = prepare_data(acute_X) 
+            acute_X = acute_X
 
-
+    # grab CV object for outer CV
     outer_cv = create_outer_cv(outer_cv_id)
     
     outer_cv_splits = outer_cv.get_n_splits(X, Y, group)
     
-    models = np.zeros((1, outer_cv_splits), dtype=object)
-    explained_var  = np.zeros((1,outer_cv_splits), dtype=object)
-    variable_importance  = []
-    correlations  = np.zeros((1,outer_cv_splits), dtype=object)
+    models = np.zeros((outer_cv_splits), dtype=object)
+    explained_var  = np.zeros((outer_cv_splits), dtype=object)
+    correlations  = np.zeros((outer_cv_splits), dtype=object)
     size_testgroup =[]
 
     for n in range(0,nperms):
         
         logprint('\n\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~ PERMUTATION: {}/{} ~ ~ ~ ~ ~ ~ ~ ~ ~ \n\n'.format(n, nperms))
         
-        activation_weights=[]
         beta_coeffs_weights=[]
         for cv_fold, (train_id, test_id) in enumerate(outer_cv.split(X, Y, group)): 
-            
+                        
             logprint("------ Outer Fold: {}/{} ------".format(cv_fold + 1, outer_cv_splits))
             
             X_train, X_test = X[train_id], X[test_id]  # for acutechronic, this is only chronic data.
@@ -526,105 +508,91 @@ def run_regression(x, Y, group, inner_cv_id, outer_cv_id, model_tested, atlas, y
                 X_train = np.concatenate((X_train, acute_X),axis=0)
                 y_train = np.concatenate((y_train, acute_Y),axis=0)
                 group_train = np.concatenate((group_train, acute_site), axis=0)
-
-
+    
+            
             logprint('Size of test: {}'.format(y_test.shape[0]))
             logprint('Size of train: {}'.format(X_train.shape[0]))
             
-            logprint('Number of sites in test set: {}'.format(np.unique(group_test).shape[0]))
-            
+            # grab the model specified/create Pipeline if necessary
             mdl, mdl_label = get_models('regression', model_tested) 
 
+            # save size of test group
             size_testgroup.append(group_test.shape[0])
             
-            mdl_idx=0
+            # grab CV object 
             inner_cv = create_inner_cv(inner_cv_id,n)
 
-
+            # do cross-validation to find an optimal model 
             mdl = inner_loop(mdl, mdl_label, X_train, y_train, group_train, inner_cv, 10)  
-            
-            
+
+            # fit best model to full training set
             mdl.fit(X_train, y_train)
-            print(mdl)
             
+            # extract features from the fit model
             if model_tested == 'ridge':
                 cols = mdl['featselect'].get_support(indices=True)
-                activation, beta_coeffs = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
-                activation_weights.append(activation)
+                beta_coeffs = get_beta_coefficients(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
                 beta_coeffs_weights.append(beta_coeffs)
 
             elif model_tested== 'ridge_nofeatselect':
                 mdl_label=mdl_label
                 if atlas =='lesionload_all':
                     cols = [0, 1, 2, 3, 4, 5]
-                    activation, beta_coeffs = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
-                    activation_weights.append(activation)
+                    beta_coeffs = get_beta_coefficients(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
                     beta_coeffs_weights.append(beta_coeffs)
                     
                 elif atlas == 'lesionload_all_2h':
                     cols = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-                    activation, beta_coeffs = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
-                    activation_weights.append(activation)
+                    beta_coeffs = get_beta_coefficients(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
                     beta_coeffs_weights.append(beta_coeffs)
+                    
                 elif atlas == 'lesionload_slnm':
                     cols = [0, 1, 2, 3, 4]
-                    activation, beta_coeffs = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
-                    activation_weights.append(activation)
+                    beta_coeffs = get_beta_coefficients(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
                     beta_coeffs_weights.append(beta_coeffs)
                 elif atlas == 'shen268':
                     cols = range(268)
-                    print(cols)
-                    activation, beta_coeffs = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
+                    beta_coeffs = get_beta_coefficients(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
                     beta_coeffs_weights.append(beta_coeffs)
                 elif atlas == 'fs86subj':
                     cols = range(86)
-                    print(cols)
-
-                    activation, beta_coeffs = haufe_transform_results(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
+                    beta_coeffs = get_beta_coefficients(X_train, y_train, cols, mdl, mdl_label, chaco_type, atlas, x)
                     beta_coeffs_weights.append(beta_coeffs)
             else:
                 mdl_label=mdl_label
 
-                activation_weights=[]
                 beta_coeffs_weights=[]
 
-
+            # predict scores in the test set
             y_pred= mdl.predict(X_test)
             
-            expl=explained_variance_score(y_test, y_pred)
+            # create filename suffix for saving outputs
             filename =  '{}_{}_{}_{}_{}_crossval{}_perm{}'.format(atlas, y_var, chaco_type, subset, mdl_label,crossval_type,n)
-            print(os.path.join(results_path,output_path, filename + "_train_IDs.txt"))
 
-            np.save(os.path.join(results_path,output_path, filename + "_train_IDs.npy"), group_train)
-            np.save(os.path.join(results_path,output_path, filename + "_test_IDs.txt"), group_test)
-
-            #variable_importance.append(mdl.named_steps[mdl_label].coef_)
-            correlations[mdl_idx, cv_fold] = np_pearson_cor(y_test,y_pred)[0]
+            # sanity check to make sure test subjects != any training subjects
+            #np.save(os.path.join(results_path,output_path, filename + "_train_IDs"), group_train)
+            #np.save(os.path.join(results_path,output_path, filename + "_test_IDs"), group_test)
+            
+            expl=explained_variance_score(y_test, y_pred)
+            correlations[cv_fold] = np_pearson_cor(y_test,y_pred)[0]
             
             logprint('R^2 score: {} '.format(np.round(explained_variance_score(y_test, y_pred), 3)))
             logprint('Correlation: {} '.format(np.round(np_pearson_cor(y_test,y_pred)[0][0], 3)))
-            explained_var[mdl_idx, cv_fold]=expl
+            explained_var[cv_fold]=expl
+            
             if save_models:
-                models[mdl_idx, cv_fold] = mdl
+                models[cv_fold] = mdl
                 
-            mdl_idx += 1
             logprint('\n')
 
-        if null>0:
-            logprint('NULL!')
-            filename = filename + '_null_' + str(null)
+        print('Mean correlation over all outer folds: {}'.format(np.mean(correlations)))
+        print('Mean R^2 over all outer folds: {}'.format(np.mean(explained_var)))
 
         logprint('\n\n')
-        print(os.path.join(results_path, output_path))
-        print(os.path.join(results_path,output_path,filename+ "_scores.npy"))
         np.save(os.path.join(results_path, output_path,filename+ "_scores.npy"), explained_var)
         np.save(os.path.join(results_path,output_path, filename + "_model.npy"), models)
-        np.save(os.path.join(results_path,output_path, filename+"_correlations.npy"), correlations)
+        np.save(os.path.join(results_path,output_path, filename+ "_correlations.npy"), correlations)
         np.save(os.path.join(results_path,output_path, filename + "_beta_coeffs.npy"), beta_coeffs_weights)
-
-        np.save(os.path.join(results_path,output_path,filename + "_activation_weights.npy"), activation_weights)
-
-        np.save(os.path.join(results_path,output_path,filename+ "_variable_impts.npy"), variable_importance)
         np.save(os.path.join(results_path, output_path,filename+ "_test_group_sizes.npy"), size_testgroup)
 
 

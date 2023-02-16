@@ -17,10 +17,10 @@ Column names can be entered into the pipeline according to the documentation bel
 
 ## Outputs:
 
-The information entered into parse_args.py will be used to save results into files, according to the following structure:
+The information entered into parse_args.py will be used to save results into files, producing prefixes according to the structure:
 
 ```
-filename_prefix =  '{}_{}_{}_{}_{}_crossval{}_perm{}_'.format(atlas, y_var, chaco_type, subset, model_specified, crossval_type,n)
+fileprefix = {atlas}_{y_var}_{chaco_type}_{subset}_{model_specified}_crossval{crossval_type}_{n}_
 ```
 where n is the permutation #.
 e.g., 
@@ -28,6 +28,7 @@ e.g.,
 ```
 shen268_normed_motor_scores_chacovol_chronic_ridge_crossval1_perm0_
 ```
+would be the prefix using the atlas "shen268", where normed_motor_scores is "y_var" indicated below, chaco_types is "chacovol", subsets is "chronic", model_specified is "ridge", crossval_type is "1"
 
 ### Outputs you may care about:
 
