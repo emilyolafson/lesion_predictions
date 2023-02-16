@@ -1,6 +1,6 @@
 ![Pipeline](pipeline.png)
 
-##Some assumptions of the pipeline:
+## Some assumptions of the pipeline:
 
 - Your data is stored in a .csv file that contains subjects in rows, with named columns containing 
 1) subject IDs (e.g. BIDS_ID)
