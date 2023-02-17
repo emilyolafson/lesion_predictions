@@ -3,16 +3,8 @@
 
 
 ## Getting Started
-The machine learning pipeline, which includes data formatting and model evaluation, can be found in [pipeline](pipeline)
+The machine learning pipeline, which includes data formatting and model evaluation, can be found in [pipeline](pipeline).
 
-Requirements:
-```
-matplotlib==3.3.4
-numpy==1.20.1
-pandas==1.2.4
-scikit_learn==1.1.3
-scipy==1.6.2
-```
 # Contents
 
 1. [Predicting motor scores from M1-CST-LL](#m1-corticospinal-tract-lesion-load)
