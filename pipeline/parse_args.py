@@ -62,7 +62,11 @@ if __name__ == '__main__':
   # verbose: bool, default = True, whether to print out verbose output
   parser.add_argument("--verbose", default=True,type=bool,
     help="Whether to print out verbose output, default=True")
-
+  
+  # verbose: generate_figures, default = False, whether to make boxplots
+  parser.add_argument("--generate_figures", default=False,
+    help=" Whether to make figures/boxplots, default=False")
+  
   # covariates: list, default = [], covariates to include in model
   parser.add_argument("--covariates", default=[], type=lambda s: [item.replace(" ", "") for item in s.split(',')],
     help="Covariates to include in model, default=[]")
@@ -148,7 +152,7 @@ if __name__ == '__main__':
   
       
   args = parser.parse_args()
-  # check that parameters make sense.
+    # check that parameters make sense.
   model_options= ['none', 'ridge', 'lasso', 'elastic_net', 'ridge_nofeatselect', 'linear_regression', 'svm', 'svr', 'ensemble_reg']
   if not set(args.models_tested).issubset(set(model_options)):
       raise RuntimeError('Warning! Unknown model option specified {} \n Only the following options are allowed {} \n'.format(args.models_tested, model_options))
@@ -201,6 +205,10 @@ if __name__ == '__main__':
     # anything else I'm assuming you meant false.
     args.figs_only = (args.figs_only =='True') or (args.figs_only == 'true') or (args.figs_only == 'T') or (args.figs_only == '1')
     
+  if isinstance(args.generate_figures, str):
+    # anything else I'm assuming you meant false.
+    args.generate_figures = (args.generate_figures =='True') or (args.generate_figures == 'true') or (args.generate_figures == 'T') or (args.generate_figures == '1')
+    
   if isinstance(args.override_rerunmodels, str):
     # anything else I'm assuming you meant false.
     args.override_rerunmodels = (args.override_rerunmodels =='True') or (args.override_rerunmodels == 'true') or (args.override_rerunmodels == 'T') or (args.override_rerunmodels == '1')
@@ -215,5 +223,7 @@ if __name__ == '__main__':
 
   kwargs = vars(args)
   pprint.pprint(kwargs)
+  print('precall')
+  print(args.generate_figures)
     
   main(args)

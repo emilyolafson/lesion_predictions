@@ -24,7 +24,8 @@ reload(helper_functions_figures)
 # options for visualizing the results using the Connectome Workbench software and generating box plots of the results.
 
 
-def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colname,chronicity_colname,subsets,nemo_settings, models_tested, verbose, covariates, lesionload_types, nperms, save_models, ensembles,hcp_dir, atlases, chaco_types, crossval_types, null, results_path, output_folder, figs_only, fig_path, workbench_vis,scenesdir, wbpath,boxplots, override_rerunmodels, ensemble_atlas,final_model):
+def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colname,chronicity_colname,subsets,nemo_settings, models_tested, verbose, covariates, lesionload_types, nperms, save_models, ensembles,hcp_dir, atlases, chaco_types, crossval_types, null, results_path, output_folder, figs_only, fig_path, workbench_vis,scenesdir, wbpath,boxplots, override_rerunmodels, ensemble_atlas,final_model,generate_figures):
+    
     subsetcounter = 0
     labels=[]
     r2means=np.empty(shape=(0,nperms))
@@ -50,7 +51,7 @@ def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colna
                                 for subset in subsets:
                                     chaco_model_tested= []
                                     print('----- \n ----------- \n ----------- \n ------')
-                                    print(model_tested)
+
                                     #format the data for the current parameters
                                     [X, Y, C, lesion_load, subIDs] = create_data_set(csv_path,site_colname,nemo_path,yvar_colname,subid_colname,chronicity_colname,atlas,covariates, verbose, y_var, chaco_type, subset,1,nemo_settings=nemo_settings,ll= lesionload_type)
                                     
@@ -59,7 +60,6 @@ def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colna
                                     print(X.shape)
                                     
                                     if subset == 'acutechronic':
-                                        print('subset is acutechronic')
                                         # if acutechronic, X (from above) is chronic data.
                                         # load the acute data here:
                                         [acuteX, acuteY,acuteC, acute_lesion_load, acute_subIDs] = create_data_set(csv_path,site_colname,nemo_path,yvar_colname, subid_colname,chronicity_colname,atlas,covariates, verbose, y_var, chaco_type,'acute',1,nemo_settings,ll= lesionload_type)
@@ -98,22 +98,24 @@ def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colna
 
                                     # The code generates visualization files for the workbench and creates figures using the workbench.
                                     # This is only done if the workbench_vis variable is set to True.
-                                    if chaco_type == 'chacovol':   
-                                        if workbench_vis:
-                                            if atlas =='shen268':
-                                                factor = 1
-                                            elif atlas=='fs86subj':
-                                                factor=4
-                                            kwargs_workbench_setup = { 'results_path': results_path, 'output_folder': output_folder, 'fig_path': fig_path, \
-                                                'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset, 'atlas':atlas,'hcp_dir':hcp_dir,'wbpath':wbpath,  'model_tested':model_tested,  'crossval':crossval, 'scenesdir':scenesdir, 'final_model':final_model,'factor':factor}
-                                            print('\nMaking workbench visualization files..\n')
-                                            #generate_wb_files(**kwargs_workbench_setup)
-       
-                                            kwargs_workbench = { 'results_path': results_path, 'fig_path': fig_path, 'scenesdir': scenesdir,\
-                                                'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset, 'atlas':atlas,'model_tested':model_tested, 'wbpath':wbpath, 'crossval':crossval, 'final_model':final_model}
-                                            print('\nMaking workbench visualization files..\n')
-                                            print('Making workbench figures..\n')
-                                            #generate_wb_figures(**kwargs_workbench)
+                                    if generate_figures:
+                                        
+                                        if chaco_type == 'chacovol':   
+                                            if workbench_vis:
+                                                if atlas =='shen268':
+                                                    factor = 1
+                                                elif atlas=='fs86subj':
+                                                    factor=4
+                                                kwargs_workbench_setup = { 'results_path': results_path, 'output_folder': output_folder, 'fig_path': fig_path, \
+                                                    'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset, 'atlas':atlas,'hcp_dir':hcp_dir,'wbpath':wbpath,  'model_tested':model_tested,  'crossval':crossval, 'scenesdir':scenesdir, 'final_model':final_model,'factor':factor}
+                                                print('\nMaking workbench visualization files..\n')
+                                                #generate_wb_files(**kwargs_workbench_setup)
+        
+                                                kwargs_workbench = { 'results_path': results_path, 'fig_path': fig_path, 'scenesdir': scenesdir,\
+                                                    'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset, 'atlas':atlas,'model_tested':model_tested, 'wbpath':wbpath, 'crossval':crossval, 'final_model':final_model}
+                                                print('\nMaking workbench visualization files..\n')
+                                                print('Making workbench figures..\n')
+                                                #generate_wb_figures(**kwargs_workbench)
                                 
                                         
                                     # Generate labels for boxplots
@@ -187,17 +189,18 @@ def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colna
                             r2means=np.append(r2means,np.reshape(np.mean(r2all,axis=1),[-1, nperms]),axis=0)
                             corrs=np.append(corrs,np.reshape(np.mean(corrall,axis=1), [-1, nperms]),axis=0)
                             
-                            # The code generates boxplots of the lesion load beta coefficients.
-                            if atlas == 'lesionload_all' or atlas=='lesionload_all_2h':
-                                kwargs_llfigs = {'results_path':results_path, 'output_folder':output_folder, 'fig_path':fig_path,\
-                                    'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                                        'model_tested':model_tested, 'crossval':crossval}
-                                generate_smatt_ll_figures(**kwargs_llfigs)
-                            if atlas == 'lesionload_slnm':
-                                kwargs_llfigs = {'results_path':results_path, 'output_folder':output_folder, 'fig_path':fig_path,\
-                                    'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
-                                        'model_tested':model_tested, 'crossval':crossval}
-                                generate_slm_figures(**kwargs_llfigs)
+                            if generate_figures:
+                                # The code generates boxplots of the lesion load beta coefficients.
+                                if atlas == 'lesionload_all' or atlas=='lesionload_all_2h':
+                                    kwargs_llfigs = {'results_path':results_path, 'output_folder':output_folder, 'fig_path':fig_path,\
+                                        'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
+                                            'model_tested':model_tested, 'crossval':crossval}
+                                    generate_smatt_ll_figures(**kwargs_llfigs)
+                                if atlas == 'lesionload_slnm':
+                                    kwargs_llfigs = {'results_path':results_path, 'output_folder':output_folder, 'fig_path':fig_path,\
+                                        'atlas':atlas, 'y_var':y_var, 'chaco_type':chaco_type, 'subset':subset,\
+                                            'model_tested':model_tested, 'crossval':crossval}
+                                    generate_slm_figures(**kwargs_llfigs)
 
                             # Generate labels for boxplots
                             if atlas == 'lesionload_all':
@@ -253,12 +256,13 @@ def run_models(site_colname, csv_path, y_var,nemo_path, yvar_colname,subid_colna
             subsets = 1
     kwargs = {'label': labels, 'r2_scores':r2means, 'correlations':corrs,'results_path': results_path, 'fig_path': fig_path, \
             'subsets': subsets, 'acutechronic':acutechronic}
-    if boxplots:
-        print('Making boxplots..')
-        create_performance_figures(**kwargs)
-    if boxplots:
-        print('Making paired plots..')
-        create_matrix_figures(**kwargs)
+    if generate_figures:
+        if boxplots:
+            print('Making boxplots..')
+            create_performance_figures(**kwargs)
+        if boxplots:
+            print('Making paired plots..')
+            create_matrix_figures(**kwargs)
 
 
 
