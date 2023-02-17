@@ -2,6 +2,7 @@
 
 ## Some assumptions of the pipeline:
 
+- Subject IDs correspond to NeMo outputs
 - Your data is stored in a .csv file that contains subjects in rows, with named columns containing 
 1) subject IDs (e.g. BIDS_ID)
 2) A singular outcome variable
@@ -14,8 +15,6 @@ and optionally,
 
 Column names can be entered into the pipeline according to the documentation below.
 
-- Subject IDs correspond to NeMo outputs
-- 
 
 
 ## Outputs:
@@ -48,7 +47,7 @@ would be the prefix using the atlas "shen268", where y_var is "normed_motor_scor
 
 Files are saved as .npy pickled objects in the folder results_path/output_path 
 
-See analysis_1.sh for an example of how to call parse_args.py and run the model.
+See basic_model_M1_CST_LL.sh, basic_model_ChaCo.sh for examples of how to call parse_args.py and run the model.
 
 
 ## Documentation of inputs

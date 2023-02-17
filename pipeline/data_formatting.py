@@ -243,24 +243,14 @@ def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_coln
     
     X = load_chaco_data(ids_fullpaths_nonemissing, chaco_type)
     X = np.array(X)
-    print(X.shape)
-    
-    lesionvol = load_lesion_vol(df_final)
-    lesioned_hem= df_final['LESIONED_HEMISPHERE']
+
     C = df_final.loc[:,covariates_list].values
-    print(df_final.columns)
-    if site_colname:
-        site = df_final[site_colname]
-        site_final = np.unique(site)
-        #make an instance of Label Encoder
-        label_encoder = preprocessing.LabelEncoder()
-        site = label_encoder.fit_transform(site)       
-    else:
-        site = []
+    
         
     # load y data
     y = df_final[yvar_colname].values
        # y = np.reshape(y, (len(y),1))
+    
     
     llvars = ['M1_CST', 'PMd_CST', 'PMv_CST','S1_CST','SMA_CST','preSMA_CST']
     ll_2h_vars =['L_M1_CST', 'L_PMd_CST', 'L_PMv_CST','L_S1_CST','L_SMA_CST','L_preSMA_CST','R_M1_CST', 'R_PMd_CST', 'R_PMv_CST','R_S1_CST','R_SMA_CST','R_preSMA_CST']
@@ -272,20 +262,12 @@ def create_data_set(csv_path=None, site_colname = None, nemo_path=None,yvar_coln
     elif ll=='all_2h':
         lesion_load=df_final.loc[:,ll_2h_vars]
     elif ll=='slnm':
-        print('lesion load is sLNM')
         lesion_load = df_final.loc[:,slnm_vars]
     elif ll=='none':
         lesion_load=[]
         
-    if return_motor:
-        motor_ids = ['NORMED_MOTOR','FUGL_MEYER_UE_NORM','ARAT_NORM','WMFT_FAS_NORM','NIHSS_NORM','MOTRICITY_ARM_A','GRIP_NORM_A_TO_NA','BARTHEL']
-        motor_vars = df_final.loc[:,motor_ids]
-    else:
-        motor_vars= []
+    subIDs = df_final[subid_colname]
+    
 
-    if subset=='knockoff':
-        X = pd.read_csv('/home/ubuntu/enigma/motor_predictions/knockoff.csv', header=None)
-        print(X.shape)
-        
-    return X, y, C, lesion_load, site, site_final, lesioned_hem,motor_vars
+    return X, y, C, lesion_load, subIDs
 

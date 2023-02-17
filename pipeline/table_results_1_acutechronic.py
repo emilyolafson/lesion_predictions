@@ -25,7 +25,7 @@ subset = 'acutechronic'
 ensemble_atlases = ['fs86subj','shen268']
 atlases=['fs86subj', 'shen268']
 lesionload_types = ['slnm']
-output_path = '/home/ubuntu/enigma/results/analysis_1'
+output_folder = '/home/ubuntu/enigma/results/analysis_1'
 
 ensemble_labels=[]
 r2scores=[]
@@ -54,7 +54,7 @@ for ensemble in ensembles:
                     counter = counter +1
                     atlas, model_tested, chaco_type = set_vars_for_ll(lesionload_type)
                     
-                    [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds,ensemble_atlas,chaco_model_tested)
+                    [r2all, corrall] = save_model_outputs(results_path, output_folder, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds,ensemble_atlas,chaco_model_tested)
                     r2scores.append('{:.3f}'.format(np.median(np.reshape(np.mean(r2all,axis=1),[-1, nperms]))))
                     correlations.append('{:.3f}'.format(np.median(np.reshape(np.mean(corrall,axis=1), [-1, nperms]))))
 
@@ -105,11 +105,11 @@ for ensemble in ensembles:
                             files_exist, folder = check_if_files_exist(crossval,model_tested,atlas,chaco_type,results_path, ensemble, y_var, subset,ensemble_atlas)
                             if files_exist: # we dont want to override but dont recalculate what's already been done
                                 output_fullpath = folder
-                                output_path = output_fullpath.replace(results_path, '').replace('/', '')
+                                output_folder = output_fullpath.replace(results_path, '').replace('/', '')
 
                             n_outer_folds=5
     
-                            [r2all, corrall] = save_model_outputs(results_path, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds, ensemble_atlas)
+                            [r2all, corrall] = save_model_outputs(results_path, output_folder, atlas, y_var, chaco_type, subset, model_tested, crossval, nperms,ensemble,n_outer_folds, ensemble_atlas)
                             r2scores.append('{:.3f}'.format(np.median(np.reshape(np.mean(r2all,axis=1),[-1, nperms]))))
                             correlations.append('{:.3f}'.format(np.median(np.reshape(np.mean(corrall,axis=1), [-1, nperms]))))
                             

@@ -13,7 +13,7 @@ from itertools import combinations
 
 
 
-def create_performance_figures(r2_scores, correlations,label, results_path, analysis_id, subsets,acutechronic=False):
+def create_performance_figures(r2_scores, correlations,label, results_path, fig_path, subsets,acutechronic=False):
     # The function create_performance_figures takes in the r2 scores, correlations, label, results path,
     # analysis id, and subsets as input. 
     # It formats the label by replacing certain substrings with more descriptive labels. 
@@ -26,38 +26,38 @@ def create_performance_figures(r2_scores, correlations,label, results_path, anal
 
     n_sets = subsets
     print('n sets:{}'.format(n_sets))
-    if analysis_id=='analysis_1':
+    if fig_path=='analysis_1':
         range_y = 'analysis1'
-    if analysis_id == 'analysis_1_fm':
+    if fig_path == 'analysis_1_fm':
         range_y = 'analysis1_fm'
-    if analysis_id=='analysis_2':
+    if fig_path=='analysis_2':
         range_y = 'analysis2'
-    if analysis_id=='analysis_3':
+    if fig_path=='analysis_3':
         range_y = 'analysis3'    
-    if analysis_id=='analysis_4':
+    if fig_path=='analysis_4':
         range_y = 'analysis4'  
-    if analysis_id=='analysis_5':
+    if fig_path=='analysis_5':
         range_y = 'analysis5'    
-    if analysis_id=='analysis_6':
+    if fig_path=='analysis_6':
         range_y = 'analysis6'  
-    if analysis_id == 'analysis_7':
+    if fig_path == 'analysis_7':
         range_y = 'analysis7'
-    if analysis_id =='analysis_8':
+    if fig_path =='analysis_8':
         range_y = 'analysis8'
     # for loop over subsets
     
-    print('Saving boxplots to folder: {}'.format(os.path.join(results_path,analysis_id)))    
+    print('Saving boxplots to folder: {}'.format(os.path.join(results_path,fig_path)))    
     ylabel = 'R-squared'
-    path_file = os.path.join(results_path,analysis_id, analysis_id + '_boxplots_rsquared.png')
+    path_file = os.path.join(results_path,fig_path, fig_path + '_boxplots_rsquared.png')
     box_and_whisker(np.transpose(r2_scores), title, ylabel, xticklabels, path_file,n_sets,range_y,acutechronic)
     
     ylabel = 'Pearson correlation'
-    path_file = os.path.join(results_path,analysis_id, analysis_id + '_boxplots_correlations.png')
+    path_file = os.path.join(results_path,fig_path, fig_path + '_boxplots_correlations.png')
     
     box_and_whisker(np.transpose(correlations), title, ylabel, xticklabels, path_file,n_sets,range_y,acutechronic)
 
 
-def create_matrix_figures(r2_scores, correlations,label, results_path, analysis_id, subsets,acutechronic=False):
+def create_matrix_figures(r2_scores, correlations,label, results_path, fig_path, subsets,acutechronic=False):
     # The function create_performance_figures takes in the r2 scores, correlations, label, results path,
     # analysis id, and subsets as input. 
     # It formats the label by replacing certain substrings with more descriptive labels. 
@@ -65,7 +65,7 @@ def create_matrix_figures(r2_scores, correlations,label, results_path, analysis_
     # It saves the plots with filenames that include the analysis id and the type of plot (r-squared or Pearson correlation). 
     # It also takes in the number of sets and uses that to determine the layout of the plots.
     
-    path_file = os.path.join(results_path,analysis_id, analysis_id +'_matrix_figure.png')
+    path_file = os.path.join(results_path,fig_path, fig_path +'_matrix_figure.png')
 
     data=r2_scores
 
@@ -86,7 +86,7 @@ def create_matrix_figures(r2_scores, correlations,label, results_path, analysis_
                 statvalues[x,y]=np.nan
                 
     plt.figure(figsize=(17,15))
-    if analysis_id == 'analysis_1':
+    if fig_path == 'analysis_1':
         label = [item + '      ' for item in label]
 
     df = pd.DataFrame(statvalues)
@@ -117,10 +117,10 @@ def create_matrix_figures(r2_scores, correlations,label, results_path, analysis_
     sns.heatmap(df,mask=mask,cmap=cmap, vmin= -0.05, vmax=.05,annot=psymbol, fmt = '',
            linewidth=0.3, cbar_kws={"shrink": 0.8,'label': 'Difference in Explained Variance'},ax=ax)
     
-    if analysis_id =='analysis_1':
+    if fig_path =='analysis_1':
         ax.tick_params(axis='both', which='major', labelsize=17)
 
-    if analysis_id =='analysis_2':
+    if fig_path =='analysis_2':
         ax.set_yticklabels(label)
         ax.set_xticklabels(label)
         ax.tick_params(axis='both', which='major', labelsize=30)
@@ -146,9 +146,9 @@ def convert_pvalue_to_asterisks(pvalue,ntests):
     return symbol
     
 
-def generate_slm_figures(results_path,analysis_id, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval):
+def generate_slm_figures(results_path,fig_path, output_folder, atlas, y_var, chaco_type, subset, model_tested, crossval):
     title=''
-    rootname_truepred = os.path.join(results_path, output_path, '{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, model_tested,crossval))
+    rootname_truepred = os.path.join(results_path, output_folder, '{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, model_tested,crossval))
     meanbetas= np.loadtxt(os.path.join(rootname_truepred+'_meanbetas_allperms.txt'))
     print(meanbetas)
     
@@ -463,7 +463,7 @@ def box_and_whisker(data, title, ylabel, xticklabels, path,n_sets, range_y, acut
     plt.savefig(path,bbox_inches='tight')
 
 
-def generate_wb_files(atlas, scenesdir, hcp_dir, wbpath, results_path, output_path, analysis_id, y_var,chaco_type, subset, model_tested,crossval,final_model,factor):
+def generate_wb_files(atlas, scenesdir, hcp_dir, wbpath, results_path, output_folder, fig_path, y_var,chaco_type, subset, model_tested,crossval,final_model,factor):
     atlas_dir = scenesdir 
     hcp_dir =hcp_dir
     if final_model=='true':
@@ -556,7 +556,7 @@ def generate_wb_files(atlas, scenesdir, hcp_dir, wbpath, results_path, output_pa
         for file in textfiles_betas:
             print('making subcortical + surface betas files')
             
-            textfile = os.path.join(results_path, output_path, '{}_{}_{}_{}_{}_crossval{}_{}.txt'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            textfile = os.path.join(results_path, output_folder, '{}_{}_{}_{}_{}_crossval{}_{}.txt'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
             
             # load text file in fs86 parc (86,1) vector/shen268 parc (268,1)
             scalar = np.genfromtxt(textfile, dtype = "float32", delimiter = ',', usecols = 0)
@@ -576,7 +576,7 @@ def generate_wb_files(atlas, scenesdir, hcp_dir, wbpath, results_path, output_pa
                     data[atlas_file == n] = scalar[i]
                     
                 sample_img = nib.load(os.path.join(atlas_dir,'fs86_dil1_allsubj_mode.nii.gz'))
-                save_file = os.path.join(results_path, analysis_id ,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betas.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+                save_file = os.path.join(results_path, fig_path ,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betas.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
                 
                 # store nifti header info for saving file
                 save_img = nib.Nifti1Image(data, sample_img.affine, sample_img.header)
@@ -633,7 +633,7 @@ def generate_wb_files(atlas, scenesdir, hcp_dir, wbpath, results_path, output_pa
                 
                 newdata_subcort=nib.Nifti1Image(Vnew, affine=cc400.affine, header=cc400.header)
 
-                save_file = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+                save_file = os.path.join(results_path, fig_path,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
                 print('saving betas file: {}'.format(save_file))
                 nib.save(newdata_subcort, save_file)
 
@@ -656,7 +656,7 @@ def generate_wb_files(atlas, scenesdir, hcp_dir, wbpath, results_path, output_pa
                     data[atlas_file == n] = scalar[i]
                     
                 sample_img = nib.load(os.path.join(atlas_dir, 'shen268_MNI1mm_dil1.nii.gz'))
-                save_file = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betas.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+                save_file = os.path.join(results_path, fig_path, '{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betas.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
                 
                 # store nifti header info for saving file
                 save_img = nib.Nifti1Image(data, sample_img.affine, sample_img.header)
@@ -715,7 +715,7 @@ def generate_wb_files(atlas, scenesdir, hcp_dir, wbpath, results_path, output_pa
                 
                 newdata_subcort=nib.Nifti1Image(Vnew, affine=cc400.affine, header=cc400.header)
 
-                save_file = os.path.join(results_path, analysis_id ,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+                save_file = os.path.join(results_path, fig_path ,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
 
                 nib.save(newdata_subcort, save_file)
         
@@ -760,7 +760,7 @@ def generate_wb_figures_setup(hcp_dir, scenesdir):
         f.write(scenefile) 
     #these are the scene templates that will be used to create figures for the shen/fs feature weights.
 
-def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subset, model_tested,crossval,scenesdir, wbpath, final_model):
+def generate_wb_figures(atlas, results_path, fig_path, y_var,chaco_type, subset, model_tested,crossval,scenesdir, wbpath, final_model):
     
     
     if final_model=='true':
@@ -784,48 +784,48 @@ def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subs
         surface_fileLpos =surface_fileL
         nib.save(newgifti, surface_fileLpos)
         
-        shutil.copy(os.path.join(scenesdir,'subcort_scene_edit.scene'), os.path.join(results_path,analysis_id,'subcortical_scene.scene'))
-        shutil.copy(os.path.join(scenesdir,'landscape_surfaces_edit.scene'), os.path.join(results_path,analysis_id,'surfaces_scene_pos.scene')) 
-        shutil.copy(os.path.join(scenesdir,'dorsal_surface_edit.scene'), os.path.join(results_path,analysis_id,'dorsalsurfaces_scene_pos.scene')) 
+        shutil.copy(os.path.join(scenesdir,'subcort_scene_edit.scene'), os.path.join(results_path,fig_path,'subcortical_scene.scene'))
+        shutil.copy(os.path.join(scenesdir,'landscape_surfaces_edit.scene'), os.path.join(results_path,fig_path,'surfaces_scene_pos.scene')) 
+        shutil.copy(os.path.join(scenesdir,'dorsal_surface_edit.scene'), os.path.join(results_path,fig_path,'dorsalsurfaces_scene_pos.scene')) 
         
         # replace volume/surface files with specific results files.
-        with open(os.path.join(results_path, analysis_id, 'subcortical_scene.scene'), "r") as f:
+        with open(os.path.join(results_path, fig_path, 'subcortical_scene.scene'), "r") as f:
             scenefile = f.read()
             scenefile = scenefile.replace('subcortical_volumes.nii.gz',subcortical_file)
-        with open(os.path.join(results_path, analysis_id, 'subcortical_scene.scene'), 'w') as f:
+        with open(os.path.join(results_path, fig_path, 'subcortical_scene.scene'), 'w') as f:
             f.write(scenefile)
         
         
-        with open(os.path.join(results_path, analysis_id, 'surfaces_scene_pos.scene'), "r") as f:
+        with open(os.path.join(results_path, fig_path, 'surfaces_scene_pos.scene'), "r") as f:
             scenefile = f.read()
             scenefile = scenefile.replace('surfL.gii',surface_fileLpos)
             scenefile = scenefile.replace('surfR.gii',surface_fileRpos)
-        with open(os.path.join(results_path, analysis_id, 'surfaces_scene_pos.scene'), 'w') as f:
+        with open(os.path.join(results_path, fig_path, 'surfaces_scene_pos.scene'), 'w') as f:
             f.write(scenefile)  
         
-        with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene_pos.scene'), "r") as f:
+        with open(os.path.join(results_path, fig_path, 'dorsalsurfaces_scene_pos.scene'), "r") as f:
             scenefile = f.read()
             scenefile = scenefile.replace('surfL.gii',surface_fileLpos)
             scenefile = scenefile.replace('surfR.gii',surface_fileRpos)
-        with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene_pos.scene'), 'w') as f:
+        with open(os.path.join(results_path, fig_path, 'dorsalsurfaces_scene_pos.scene'), 'w') as f:
             f.write(scenefile)   
             
         # subcortical scene
         
         figurefile ='/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata_subcortical_betas_fig.png'
-        scenefile = os.path.join(results_path, analysis_id,'subcortical_scene.scene')
+        scenefile = os.path.join(results_path, fig_path,'subcortical_scene.scene')
         print('Generating workbench figures:\n {}'.format(figurefile))
         os.system('bash {}/wb_command -show-scene {} 1 {} 1500 300'.format(wbpath, scenefile, figurefile))
         
         # surface scene2
         
         figurefile ='/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata_surfaces_betas_pos_fig.png'
-        scenefile = os.path.join(results_path, analysis_id,'surfaces_scene_pos.scene')
+        scenefile = os.path.join(results_path, fig_path,'surfaces_scene_pos.scene')
         print('Generating workbench figures:\n {}'.format(figurefile))
         os.system('bash {}/wb_command -show-scene {} 1 {} 1300 900'.format(wbpath, scenefile, figurefile))
 
         figurefile ='/home/ubuntu/enigma/results/analysis_1/final_model_weights_alldata_dorsalsurfaces_betas_pos_fig.png'
-        scenefile = os.path.join(results_path, analysis_id,'dorsalsurfaces_scene_pos.scene')
+        scenefile = os.path.join(results_path, fig_path,'dorsalsurfaces_scene_pos.scene')
         print('Generating workbench figures:\n {}'.format(figurefile))
         os.system('bash {}/wb_command -show-scene {} 1 {} 10000 1300'.format(wbpath, scenefile, figurefile)) 
     
@@ -836,20 +836,20 @@ def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subs
             
         for file in textfiles_betas:
 
-            subcortical_file = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-            surface_fileR = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-            surface_fileL = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasL.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            subcortical_file = os.path.join(results_path, fig_path,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            surface_fileR = os.path.join(results_path, fig_path,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            surface_fileL = os.path.join(results_path, fig_path, '{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasL.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
             
             # because workbench is sooo intuitive, palette/visualization settings are stored in the nifti/gifti metadata!
             # have to rewrite the nifti files with nifti header info derived from manually setting the palette in workbench.
             niftimeta = nib.load(os.path.join(scenesdir, 'niftimetadata_POSNEG.nii.gz'))
-            subcortical_file = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            subcortical_file = os.path.join(results_path, fig_path,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
 
             newsubcortfile = nib.Nifti1Image(nib.load(subcortical_file).get_fdata(), niftimeta.affine, niftimeta.header)
             nib.save(newsubcortfile, subcortical_file)
             
             niftimeta_pos = nib.load(os.path.join(scenesdir, 'niftimetadata_pos.nii.gz'))
-            subcortical_file_pos = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file_pos.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            subcortical_file_pos = os.path.join(results_path, fig_path,'{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_file_pos.nii.gz'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
             newsubcortfile = nib.Nifti1Image(nib.load(subcortical_file).get_fdata(), niftimeta_pos.affine, niftimeta_pos.header)
             nib.save(newsubcortfile, subcortical_file_pos)
             
@@ -867,102 +867,102 @@ def generate_wb_figures(atlas, results_path, analysis_id, y_var,chaco_type, subs
             giftimetaR = nib.load(os.path.join(scenesdir, 'surfmetadataL_posneg.shape.gii')) # reference gifti
             giftimetaR.darrays[0].data = nib.load(surface_fileR).darrays[0].data
             newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaR.header, extra=None, file_map = giftimetaR.file_map, labeltable=giftimetaR.labeltable, darrays=giftimetaR.darrays, meta = giftimetaR.meta, version='1.0')
-            surface_fileRpos = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasL_pos.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            surface_fileRpos = os.path.join(results_path, fig_path,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasL_pos.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
             nib.save(newgifti, surface_fileRpos)
             giftimetaL = nib.load(os.path.join(scenesdir,'surfmetadataR_posneg.shape.gii')) # reference gifti
             giftimetaL.darrays[0].data = nib.load(surface_fileL).darrays[0].data
             newgifti = nib.gifti.gifti.GiftiImage(header=giftimetaL.header, extra=None, file_map = giftimetaL.file_map, labeltable=giftimetaL.labeltable, darrays=giftimetaL.darrays, meta = giftimetaL.meta, version='1.0')
-            surface_fileLpos = os.path.join(results_path, analysis_id,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR_pos.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            surface_fileLpos = os.path.join(results_path, fig_path,'{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR_pos.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
             nib.save(newgifti, surface_fileLpos)
                     
             # make copy of the scenes file that we modify for each figure.
-            shutil.copy(os.path.join(scenesdir,'subcort_scene_edit.scene'), os.path.join(results_path,analysis_id,'subcortical_scene.scene'))
-            shutil.copy(os.path.join(scenesdir,'subcort_scene_edit.scene'), os.path.join(results_path,analysis_id,'subcortical_scene_pos.scene'))
+            shutil.copy(os.path.join(scenesdir,'subcort_scene_edit.scene'), os.path.join(results_path,fig_path,'subcortical_scene.scene'))
+            shutil.copy(os.path.join(scenesdir,'subcort_scene_edit.scene'), os.path.join(results_path,fig_path,'subcortical_scene_pos.scene'))
 
-            shutil.copy(os.path.join(scenesdir,'landscape_surfaces_edit.scene'), os.path.join(results_path,analysis_id,'surfaces_scene.scene')) 
-            shutil.copy(os.path.join(scenesdir,'landscape_surfaces_edit.scene'), os.path.join(results_path,analysis_id,'surfaces_scene_pos.scene')) 
+            shutil.copy(os.path.join(scenesdir,'landscape_surfaces_edit.scene'), os.path.join(results_path,fig_path,'surfaces_scene.scene')) 
+            shutil.copy(os.path.join(scenesdir,'landscape_surfaces_edit.scene'), os.path.join(results_path,fig_path,'surfaces_scene_pos.scene')) 
 
-            shutil.copy(os.path.join(scenesdir,'dorsal_surface_edit.scene'), os.path.join(results_path,analysis_id,'dorsalsurfaces_scene.scene')) 
-            shutil.copy(os.path.join(scenesdir,'dorsal_surface_edit.scene'), os.path.join(results_path,analysis_id,'dorsalsurfaces_scene_pos.scene')) 
+            shutil.copy(os.path.join(scenesdir,'dorsal_surface_edit.scene'), os.path.join(results_path,fig_path,'dorsalsurfaces_scene.scene')) 
+            shutil.copy(os.path.join(scenesdir,'dorsal_surface_edit.scene'), os.path.join(results_path,fig_path,'dorsalsurfaces_scene_pos.scene')) 
 
             # replace volume/surface files with specific results files.
-            with open(os.path.join(results_path, analysis_id, 'subcortical_scene.scene'), "r") as f:
+            with open(os.path.join(results_path, fig_path, 'subcortical_scene.scene'), "r") as f:
                 scenefile = f.read()
                 scenefile = scenefile.replace('subcortical_volumes.nii.gz',subcortical_file)
-            with open(os.path.join(results_path, analysis_id, 'subcortical_scene.scene'), 'w') as f:
+            with open(os.path.join(results_path, fig_path, 'subcortical_scene.scene'), 'w') as f:
                 f.write(scenefile)
-            with open(os.path.join(results_path, analysis_id, 'subcortical_scene_pos.scene'), "r") as f:
+            with open(os.path.join(results_path, fig_path, 'subcortical_scene_pos.scene'), "r") as f:
                 scenefile = f.read()
                 scenefile = scenefile.replace('subcortical_volumes.nii.gz',subcortical_file_pos)
-            with open(os.path.join(results_path, analysis_id, 'subcortical_scene_pos.scene'), 'w') as f:
+            with open(os.path.join(results_path, fig_path, 'subcortical_scene_pos.scene'), 'w') as f:
                 f.write(scenefile)
-            with open(os.path.join(results_path, analysis_id, 'surfaces_scene.scene'), "r") as f:
+            with open(os.path.join(results_path, fig_path, 'surfaces_scene.scene'), "r") as f:
                 scenefile = f.read()
                 scenefile = scenefile.replace('surfL.gii',surface_fileL)
                 scenefile = scenefile.replace('surfR.gii',surface_fileR)
-            with open(os.path.join(results_path, analysis_id, 'surfaces_scene.scene'), 'w') as f:
+            with open(os.path.join(results_path, fig_path, 'surfaces_scene.scene'), 'w') as f:
                 f.write(scenefile)
-            with open(os.path.join(results_path, analysis_id, 'surfaces_scene_pos.scene'), "r") as f:
+            with open(os.path.join(results_path, fig_path, 'surfaces_scene_pos.scene'), "r") as f:
                 scenefile = f.read()
                 scenefile = scenefile.replace('surfL.gii',surface_fileLpos)
                 scenefile = scenefile.replace('surfR.gii',surface_fileRpos)
-            with open(os.path.join(results_path, analysis_id, 'surfaces_scene_pos.scene'), 'w') as f:
+            with open(os.path.join(results_path, fig_path, 'surfaces_scene_pos.scene'), 'w') as f:
                 f.write(scenefile)  
-            with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene.scene'), "r") as f:
+            with open(os.path.join(results_path, fig_path, 'dorsalsurfaces_scene.scene'), "r") as f:
                 scenefile = f.read()
                 scenefile = scenefile.replace('surfL.gii',surface_fileL)
                 scenefile = scenefile.replace('surfR.gii',surface_fileR)
-            with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene.scene'), 'w') as f:
+            with open(os.path.join(results_path, fig_path, 'dorsalsurfaces_scene.scene'), 'w') as f:
                 f.write(scenefile)   
                 
-            with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene_pos.scene'), "r") as f:
+            with open(os.path.join(results_path, fig_path, 'dorsalsurfaces_scene_pos.scene'), "r") as f:
                 scenefile = f.read()
                 scenefile = scenefile.replace('surfL.gii',surface_fileLpos)
                 scenefile = scenefile.replace('surfR.gii',surface_fileRpos)
-            with open(os.path.join(results_path, analysis_id, 'dorsalsurfaces_scene_pos.scene'), 'w') as f:
+            with open(os.path.join(results_path, fig_path, 'dorsalsurfaces_scene_pos.scene'), 'w') as f:
                 f.write(scenefile)   
                 
             # subcortical scene
             
-            figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-            scenefile = os.path.join(results_path, analysis_id,'subcortical_scene.scene')
+            figurefile = os.path.join(results_path, fig_path, '{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            scenefile = os.path.join(results_path, fig_path,'subcortical_scene.scene')
             print('Generating workbench figures:\n {}'.format(figurefile))
             os.system('bash {}/wb_command -show-scene {} 1 {} 1500 300'.format(wbpath, scenefile, figurefile))
             
-            figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_pos_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-            scenefile = os.path.join(results_path, analysis_id,'subcortical_scene_pos.scene')
+            figurefile = os.path.join(results_path, fig_path, '{}_{}_{}_{}_{}_crossval{}_{}_subcortical_betas_pos_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            scenefile = os.path.join(results_path, fig_path,'subcortical_scene_pos.scene')
             print('Generating workbench figures:\n {}'.format(figurefile))
             os.system('bash {}/wb_command -show-scene {} 1 {} 1500 300'.format(wbpath, scenefile, figurefile))
                 
             # surface scene2
             
-            figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-            scenefile = os.path.join(results_path, analysis_id,'surfaces_scene.scene')
+            figurefile = os.path.join(results_path, fig_path, '{}_{}_{}_{}_{}_crossval{}_{}_surfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            scenefile = os.path.join(results_path, fig_path,'surfaces_scene.scene')
             print('Generating workbench figures:\n {}'.format(figurefile))
             os.system('bash {}/wb_command -show-scene {} 1 {} 1300 900'.format(wbpath, scenefile, figurefile))
             
-            figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfaces_betas_pos_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-            scenefile = os.path.join(results_path, analysis_id,'surfaces_scene_pos.scene')
+            figurefile = os.path.join(results_path, fig_path, '{}_{}_{}_{}_{}_crossval{}_{}_surfaces_betas_pos_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            scenefile = os.path.join(results_path, fig_path,'surfaces_scene_pos.scene')
             print('Generating workbench figures:\n {}'.format(figurefile))
             os.system('bash {}/wb_command -show-scene {} 1 {} 1300 900'.format(wbpath, scenefile, figurefile))
 
-            figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_dorsalsurfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-            scenefile = os.path.join(results_path, analysis_id,'dorsalsurfaces_scene.scene')
+            figurefile = os.path.join(results_path, fig_path, '{}_{}_{}_{}_{}_crossval{}_{}_dorsalsurfaces_betas_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            scenefile = os.path.join(results_path, fig_path,'dorsalsurfaces_scene.scene')
             print('Generating workbench figures:\n {}'.format(figurefile))
             os.system('bash {}/wb_command -show-scene {} 1 {} 10000 1300'.format(wbpath, scenefile, figurefile))
             
-            figurefile = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_dorsalsurfaces_betas_pos_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
-            scenefile = os.path.join(results_path, analysis_id,'dorsalsurfaces_scene_pos.scene')
+            figurefile = os.path.join(results_path, fig_path, '{}_{}_{}_{}_{}_crossval{}_{}_dorsalsurfaces_betas_pos_fig.png'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+            scenefile = os.path.join(results_path, fig_path,'dorsalsurfaces_scene_pos.scene')
             print('Generating workbench figures:\n {}'.format(figurefile))
             os.system('bash {}/wb_command -show-scene {} 1 {} 10000 1300'.format(wbpath, scenefile, figurefile)) 
         
         # smatt files:
-        surface_fileR = os.path.join(results_path, analysis_id, '{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
+        surface_fileR = os.path.join(results_path, fig_path, '{}_{}_{}_{}_{}_crossval{}_{}_surfacefile_betasR.shape.gii'.format(atlas, y_var, chaco_type, subset, model_tested,crossval, file))
 
         
-def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_var, chaco_type, subset, model_tested, crossval):
+def generate_smatt_ll_figures(results_path,fig_path, output_folder, atlas, y_var, chaco_type, subset, model_tested, crossval):
     title=''
-    rootname_truepred = os.path.join(results_path, output_path, '{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, model_tested,crossval))
+    rootname_truepred = os.path.join(results_path, output_folder, '{}_{}_{}_{}_{}_crossval{}'.format(atlas, y_var, chaco_type, subset, model_tested,crossval))
     meanbetas= np.loadtxt(os.path.join(rootname_truepred+'_meanbetas_allperms.txt'))
     stdbetas = np.loadtxt(os.path.join(rootname_truepred+ '_stdbetas_allpearms.txt'))
     betas = np.loadtxt(os.path.join(rootname_truepred+ '_betas.txt'))
@@ -986,7 +986,7 @@ def generate_smatt_ll_figures(results_path,analysis_id, output_path, atlas, y_va
     # plot untransformed betra coefficitsn
     data2 = betas
     
-    path_file = os.path.join(results_path, analysis_id, analysis_id + '_' + atlas + '_' + subset + '_crossval' + crossval +  '_smatt_betas.png')
+    path_file = os.path.join(results_path, fig_path, fig_path + '_' + atlas + '_' + subset + '_crossval' + crossval +  '_smatt_betas.png')
     
     ylabel = 'Beta coefficients'
     fig, ax = plt.subplots(ncols=1, figsize =(7, 7))
