@@ -46,7 +46,7 @@ shen268_normed_motor_scores_chacovol_chronic_ridge_crossval1_perm0_
 ```
 would be the prefix using the atlas "shen268", where y_var is "normed_motor_scores", chaco_types is "chacovol", subsets is "chronic", model_specified is "ridge", crossval_type is "1"
 
-Files are saved as .npy pickled objects in the folder results_path.
+Files are saved as .npy pickled objects in the folder results_path/output_path 
 
 See analysis_1.sh for an example of how to call parse_args.py and run the model.
 
@@ -93,7 +93,7 @@ optional arguments:
   --chaco_types CHACO_TYPES
                         Regional or pairwise chaco type, Options: 'none', 'chacovol', 'chacoconn', default=['none']
   --crossval_types CROSSVAL_TYPES
-                        Which cross-validation scheme to use, Options = ['1', '2', '3', '4', '6'], default=['1']
+                        Which cross-validation scheme to use, Options = ['1', '2', '3', '4', '5'] *see below for key, default=['1']
   --null NULL           Value to use for null entries in data, default=-1 (no null model)
   --results_path RESULTS_PATH
                         Absolute path to save results (model outputs in .npy format), default='/home/ubuntu/enigma/results'
@@ -115,3 +115,12 @@ optional arguments:
   --override_rerunmodels OVERRIDE_RERUNMODELS
                         Whether to re-run models even if already run with same parameters, default=False
 ```
+
+
+## *Cross-validation types:
+
+1) Outer CV: Random partition fixed fold sizes, Inner CV: Random partition fixed fold sizes')
+2) Outer CV: Leave-one-site-out, Inner CV: Random partition fixed fold sizes')
+3) Outer CV: Group K-fold, Inner CV: Group K-fold')
+4) Outer CV: GroupShuffleSplit, Inner CV:  Random partition fixed fold sizes')
+5) Outer CV: GroupShuffleSplit, Inner CV:  GroupShuffleSplit')
