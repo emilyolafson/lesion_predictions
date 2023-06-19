@@ -72,4 +72,6 @@ The Network Modification Tool [NeMo 2.1](https://kuceyeski-wcm-web.s3.us-east-1.
 Lesion masks (or .zip files containing lesion masks) can be converted into ChaCo scores using our [online portal](https://kuceyeski-wcm-web.s3.us-east-1.amazonaws.com/upload.html). For more information 
 about the Network Modification tool, see the dedicated [GitHub documentation page](https://github.com/kjamison/nemo#readme).
 
+# Contact me 
+
 If you find mistakes or have questions about this repo please email me at olafsonemily@gmail.com.
