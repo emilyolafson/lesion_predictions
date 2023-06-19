@@ -1,6 +1,7 @@
-LBM_map_Bowren.nii.gz
+Lesion behaviour map: LBM_map_Bowren.nii.gz
 - This map is in 1mm^3 MNI v6 space, data type FLOAT32 (not binarized)
 
+Structural lesion-network maps:
 fm_slnm_pc1.nii.gz
 fm_slnm_pc2_pos.nii.gz
 fm_slnm_pc2_neg_flipped.nii.gz
