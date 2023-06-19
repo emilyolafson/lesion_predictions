@@ -33,10 +33,7 @@ Calcualte the lesion load on all ipsilesional corticospinal tracts originating f
 Calculated as the proportion of lesioned voxels that intersect with each ipsilesional tract.
 Template: [Sensorimotor Area Tract Template (SMATT)](http://lrnlab.org/) 
 
-Code:
-
-- MATLAB: SMATT_lesion_load.m (requires FSL)
-- python: SMATT_lesion_load.ipynb (uses nibabel)
+Code to calculate SMATT-LL from lesion data can be found (here)[data_processing/SMATT_lesion_load.ipynb).
 
 # Lesion Behaviour Map lesion load
 ![LBM_pic](figures/lbm.png)
@@ -50,6 +47,8 @@ If you use this map, please cite the appropriate source:
 > Bowren, M., Bruss, J., Manzel, K., Edwards, D., Liu, C., Corbetta, M., Tranel, D., & Boes, A. D. (2022). Post-stroke outcomes 
 predicted from multivariate lesion-behaviour and lesion network mapping. Brain: A Journal of Neurology. 
 https://doi.org/10.1093/brain/awac010
+
+Code to calculate LBM-LL from lesion data can be found (here)[data_processing/LBM_lesion_load.ipynb).
 
 # Structural lesion network map lesion load
 ![slnm_pic](figures/slnm.png)
