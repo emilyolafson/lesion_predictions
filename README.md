@@ -69,3 +69,6 @@ https://doi.org/10.1093/brain/awac010
 # Change in Connectivity (ChaCo) scores
 ![nemo_pic](figures/chaco-git.png)
 The Network Modification Tool [NeMo 2.1](https://kuceyeski-wcm-web.s3.us-east-1.amazonaws.com/upload.html) can be used to estimate regional or pairwise change in connectivity (ChaCo) scores, given a binary lesion mask.
+
+Lesion masks (or .zip files containing lesion masks) can be converted into ChaCo scores using our [online portal](https://kuceyeski-wcm-web.s3.us-east-1.amazonaws.com/upload.html). For more information 
+about the Network Modification tool, see the dedicated [GitHub documentation page](https://github.com/kjamison/nemo#readme).
