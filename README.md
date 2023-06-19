@@ -1,5 +1,12 @@
 
-# Predicting chronic motor scores from lesion data.
+# Prediction of post-stroke behavioural scores from lesion data
+This repository contains code and data that can be used to train and evaluate predictive models of post-stroke outcome from volumetric lesion 
+data. 
+
+It is based on the paper by Olafson and colleagues, 'Data-driven biomarkers outperform theory-based biomarkers in predicting stroke motor 
+outcomes' (2023).
+
+
 
 
 ## Getting Started
@@ -8,10 +15,10 @@ The machine learning pipeline, which includes data formatting and model evaluati
 # Contents
 
 1. [Predicting motor scores from M1-LL](#m1-corticospinal-tract-lesion-load)
-2. [Predicting motor scores from SMATT-LL](#sensorimotor-area-tract-template-(smatt)-lesion-load)
+2. [Predicting motor scores from SMATT-LL](#sensorimotor-area-tract-template-smatt-lesion-load)
 3. [Predicting motor scores from LBM-LL](#lesion-behaviour-map-lesion-load) 
-4. [Predicting motor scores from sLNM-LL](#structural-lesion-network-map-lesion-load)
-5. [Predicting motor scores from ChaCo scores](#change-in-connectivity-(chaco)-scores)
+4. [Predicting motor scores from sLNM-LL](#structural-lesion-newtork-map-lesion-load)
+5. [Predicting motor scores from ChaCo scores](#change-in-connectivity-chaco-scores)
 
 # M1 corticospinal tract lesion load
 ![M1_pic](figures/M1.png)
