@@ -10,7 +10,8 @@ outcomes' (2023).
 
 
 ## Getting Started
-The machine learning pipeline, which includes data formatting and model evaluation, can be found in [pipeline](pipeline).
+The machine learning pipeline, which includes python code for data formatting and model evaluation, can be found in [pipeline](pipeline). It uses 
+the sklearn package, and is meant to be relatively easily adaptable to new data.
 
 # Contents
 

@@ -2,35 +2,19 @@
 
 ## Some assumptions of the pipeline:
 
-- Subject IDs correspond to NeMo outputs
-- Your data is stored in a .csv file that contains subjects in rows, with named columns containing 
-1) subject IDs (e.g. BIDS_ID)
-2) A singular outcome variable
+- Subject IDs correspond to NeMo output file names (if using ChaCo scores to predict outcomes)
+- Your data is stored in a .csv file that contains subjects in rows, with at least 2 named columns:
+ 
+1) subject IDs (e.g. subid_colname: BIDS_ID)
+2) A singular outcome variable (e.g. y_var: normed_motor_scores)
 
 and optionally,
 
 3) covariates of interest (e.g. sex, age)
-4) lesion load values 
-5) chronicity
+4) lesion load values (if using M1-LL, SMATT-LL, LBM-LL, or sLNM-LL)
+5) chronicity (e.g. acute, chronic) if specifying a subset of the data
 
-Column names can be entered into the pipeline according to the documentation below.
-
-
-
-## Outputs:
-
-### Basic outputs you may care about:
-
-- {fileprefix}_scores.py
--- R^2 scores for all test folds in the outer loop
-- {fileprefix}_correlations.npy
--- Correlations between true & predicted outcomes for all test folds in outer loop
-- {fileprefix}_beta_coeffs.npy
--- Beta coefficients for features
-- {fileprefix}_model.py 
--- The final trained model for all training folds
-- {fileprefix}_test_group_sizes.py 
--- Size of subjects in test folds.
+Custom column names can be specified the pipeline according to the documentation below.
 
 The information entered into parse_args.py will be used to save results into files, producing prefixes according to the structure:
 
@@ -43,11 +27,7 @@ e.g.,
 ```
 shen268_normed_motor_scores_chacovol_chronic_ridge_crossval1_perm0_
 ```
-would be the prefix using the atlas "shen268", where y_var is "normed_motor_scores", chaco_types is "chacovol", subsets is "chronic", model_specified is "ridge", crossval_type is "1"
-
-Files are saved as .npy pickled objects in the folder results_path/output_path 
-
-See basic_model_M1_CST_LL.sh, basic_model_ChaCo.sh for examples of how to call parse_args.py and run the model.
+would be the prefix using the atlas "shen268", where y_var is "normed_motor_scores", chaco_types is "chacovol", the chronicity subset specified is "chronic", model_specified is "ridge", crossval_type is "1" (see below for more details)
 
 
 ## Documentation of inputs
@@ -126,3 +106,24 @@ optional arguments:
 3) Outer CV: Group K-fold, Inner CV: Group K-fold')
 4) Outer CV: GroupShuffleSplit, Inner CV:  Random partition fixed fold sizes')
 5) Outer CV: GroupShuffleSplit, Inner CV:  GroupShuffleSplit')
+
+
+## Outputs:
+
+### Basic outputs you may care about:
+
+- {fileprefix}_scores.py
+-- R^2 scores for all test folds in the outer loop
+- {fileprefix}_correlations.npy
+-- Correlations between true & predicted outcomes for all test folds in outer loop
+- {fileprefix}_beta_coeffs.npy
+-- Beta coefficients for features
+- {fileprefix}_model.py 
+-- The final trained model for all training folds
+- {fileprefix}_test_group_sizes.py 
+-- Size of subjects in test folds.
+
+Files are saved as .npy pickled objects in the folder results_path/output_path 
+
+See basic_model_M1_CST_LL.sh, basic_model_ChaCo.sh for examples of how to call parse_args.py and run the model.
+
