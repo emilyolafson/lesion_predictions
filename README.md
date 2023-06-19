@@ -7,9 +7,11 @@ The machine learning pipeline, which includes data formatting and model evaluati
 
 # Contents
 
-1. [Predicting motor scores from M1-CST-LL](#m1-corticospinal-tract-lesion-load)
-2. [Predicting motor scores from CST-LL](#sensorimotor-area-tract-template-(smatt)-lesion-load)
-3. [Predicting motor scores from ChaCo scores](#change-in-connectivity-(chaco)-scores)
+1. [Predicting motor scores from M1-LL](#m1-corticospinal-tract-lesion-load)
+2. [Predicting motor scores from SMATT-LL](#sensorimotor-area-tract-template-(smatt)-lesion-load)
+3. [Predicting motor scores from LBM-LL](#lesion-behaviour-map-lesion-load) 
+4. [Predicting motor scores from sLNM-LL](#structural-lesion-network-map-lesion-load)
+5. [Predicting motor scores from ChaCo scores](#change-in-connectivity-(chaco)-scores)
 
 # M1 corticospinal tract lesion load
 ![M1_pic](figures/M1.png)
@@ -28,6 +30,13 @@ Code:
 
 - MATLAB: SMATT_lesion_load.m (requires FSL)
 - python: SMATT_lesion_load.ipynb (uses nibabel)
+
+# Lesion Behaviour Map lesion load
+![LBM_pic](figures/lbm.png)
+
+# Structural lesion newtork map lesion load
+![slnm_pic](figures/slnm.png)
+
 
 # Change in Connectivity (ChaCo) scores
 ![nemo_pic](figures/chaco-git.png)
